@@ -9,7 +9,9 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        accent: "#BD2E73"
+        accent: "#BD2E73",
+        "party-a": "#E71894",
+        "party-b": "#15B4E7"
       }
     },
   },

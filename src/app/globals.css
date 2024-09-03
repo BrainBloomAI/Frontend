@@ -9,6 +9,10 @@
   background: radial-gradient(circle at 50% 0, #ffdbfa 10%, #ffffff 75%);
 }
 
+#speaker-indicator {
+  animation-duration: 500ms;
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
