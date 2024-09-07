@@ -10,7 +10,7 @@
  */
 
 enum SPEAKER_ID {
-	Computer, // scenario computer reponse
+	System, // scenario computer reponse
 	User // PWIDs
 }
 
@@ -18,6 +18,28 @@ enum RESPONSE_STATUS {
 	Okay,
 	IMprovement,
 	NotOkay
+}
+
+type AttemptEntry = {
+	id: string,
+
+	attemptNumber: number,
+	content: string,
+	successful: boolean
+
+	timeTaken: number,
+	dialogueId: string
+}
+
+type DialogueEntry = {
+	id: string,
+	speaker: SPEAKER_ID,
+	successful: boolean,
+
+	createdTimestamp: string, // iso format
+	gameId: string,
+
+	attemps: Array<AttemptEntry>
 }
 
 class GameError extends Error {
@@ -39,13 +61,28 @@ class Game {
 	gameEnded: boolean
 
 	gameId?: string
-	dialogues?: Array<[string, 0|1, number, number]>
+	dialogues?: Array<DialogueEntry>
 	gameStartTime?: number // milliseconds, unix epoch UTC of game start time
+
+	_dialoguePointer: number // index of current dialogue
+
+	dialogueNextEvent?: (speakerId: SPEAKER_ID, contents: string, respStatus: RESPONSE_STATUS) => undefined
 
 	constructor(gameId?: string) {
 		this.gameId = gameId
-		this.ready = false
-		this.gameEnded = false
+
+		// states and references
+		this._dialoguePointer = 0 // initial state
+
+		if (gameId) {
+			this.ready = true
+			this.gameEnded = false // API, fetch game state
+
+			this._loadDialogues()
+		} else {
+			this.ready = false
+			this.gameEnded = false
+		}
 	}
 
 	create() {
@@ -57,12 +94,40 @@ class Game {
 		 * will set this.ready to True if successful, otherwise remains False (default value)
 		 */
 		this.gameId = "GAMEID"
-		this.dialogues = [
-			["Hello", 0, 0, 0],
-			["Welcome", 0, 0.34, 2.4]
-		]
+		this.dialogues = []
 
 		this.ready = true
+	}
+
+	_loadDialogues(playthrough: boolean = true) {
+		/**
+		 * playthrough: boolean, if true will sequence the dialogues in an animated fashion, otherwise jumps to the most recent dialogue
+		 * 
+		 * loads the sequeunce of dialogues
+		 */
+	}
+
+	_loadNext() {
+		/**
+		 * increments ._dialoguePointer and triggers sequences for next event
+		 * 
+		 * 1. dispatch event attached to .dialogueNextEvent
+		 */
+		if (this.ready == null) {
+			// not ready
+			throw new GameNotReadyError(`Trying to invoke controller._loadNext, however this.ready = ${this.ready}`)
+		}
+		if (this._dialoguePointer >= this.dialogues!.length -1) {
+			// out of range
+			// throw error
+		}
+
+		this._dialoguePointer++
+		const dialogueData = this.dialogues![this._dialoguePointer] // guaranteed to exist since this.ready is true
+
+		if (this.dialogueNextEvent) {
+			this.dialogueNextEvent()
+		}
 	}
 
 	start() {
@@ -80,7 +145,8 @@ class Game {
 		 * player response to prompt
 		 * get computer response
 		 * 
-		 * throws a
+		 * throws a GameNotReadyError if .ready === false
+		 * throws a GameEndedError if .ended === true
 		 * 
 		 * returns RESPONSE_STATUS
 		 */
@@ -97,7 +163,7 @@ class Game {
 
 		// build computer response
 		let computerResponseTime = responseTime +(1 +Math.random() *1000) // introduce varying delay between 1-2s
-		this.dialogues!.push(["MY REPSONSE", SPEAKER_ID.Computer, computerResponseTime, computerResponseTime +5000])
+		this.dialogues!.push(["MY REPSONSE", SPEAKER_ID.System, computerResponseTime, computerResponseTime +5000])
 
 		return 0
 	}

@@ -9,15 +9,23 @@ interface GameData {
 	gameId: string,
 	title: string,
 	category: string,
+	dialogues: Array<[string, 0|1, number, number]>,
 	visualise: StaticImageData // TODO: switch to string (uri for image)
 }
 
 function getData(gameId: string): GameData {
+	/**
+	 * invokes GET /game/:gameId/info and returns the payload if successful, otherwise returns an error
+	 */
 	return {
 		gameId: "4d1f",
 		title: "Scenario 1",
 		category: "Retail",
-		visualise: asset_01
+		visualise: asset_01,
+		dialogues: [
+			["Hello", 0, 0, 0],
+			["Welcome", 0, 0.34, 2.4]
+		]
 	}
 }
 
