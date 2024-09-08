@@ -1,5 +1,3 @@
-"use server"
-
 /**
  * front-end wrapper to interact with backend interface
  * controls game logic (game master)
@@ -9,12 +7,12 @@
  * 	b. user (PWIDs)
  */
 
-enum SPEAKER_ID {
+export enum SPEAKER_ID {
 	System, // scenario computer reponse
 	User // PWIDs
 }
 
-enum RESPONSE_STATUS {
+export enum RESPONSE_STATUS {
 	Okay,
 	IMprovement,
 	NotOkay
@@ -39,7 +37,15 @@ type DialogueEntry = {
 	createdTimestamp: string, // iso format
 	gameId: string,
 
-	attemps: Array<AttemptEntry>
+	attempts: Array<AttemptEntry>
+}
+
+type GameData = {
+	title: string,
+	scenario: string,
+	visualise: {
+		src: string
+	}	
 }
 
 class GameError extends Error {
@@ -56,33 +62,50 @@ class GameNotReadyError extends GameError {
 class GameEndedError extends GameError {
 }
 
-class Game {
+export class Game {
 	ready: boolean
 	gameEnded: boolean
 
 	gameId?: string
 	dialogues?: Array<DialogueEntry>
-	gameStartTime?: number // milliseconds, unix epoch UTC of game start time
+	data?: GameData
 
 	_dialoguePointer: number // index of current dialogue
 
-	dialogueNextEvent?: (speakerId: SPEAKER_ID, contents: string, respStatus: RESPONSE_STATUS) => undefined
+	dialogueNextEvent?: (dialogueEntry: DialogueEntry) => undefined // fired whenever new dialogue appears
+	dialogueAttemptNextEvent?: (dialogueEntry: DialogueEntry, attemptEntry: AttemptEntry) => undefined // fired whenever new attempt appears (first attempt fires immediately right after dialogue gets created)
 
-	constructor(gameId?: string) {
-		this.gameId = gameId
-
+	constructor() {
 		// states and references
 		this._dialoguePointer = 0 // initial state
 
-		if (gameId) {
-			this.ready = true
-			this.gameEnded = false // API, fetch game state
+		this.ready = false
+		this.gameEnded = false
+	}
 
-			this._loadDialogues()
-		} else {
-			this.ready = false
-			this.gameEnded = false
+	async register(gameId: string) {
+		/**
+		 * registers this game object with the gameId
+		 * will load data related to gameId if user has access to it (controlled by backend)
+		 */
+		this.gameId = gameId
+
+		if (true) {
+			// API validate user has access to gameId
+			this.ready = true
+
+			this.data = {
+				title: "API",
+				scenario: "API",
+				visualise: {
+					src: "ABC"
+				}
+			}
+
+			this.gameEnded = false // API see game state
 		}
+
+		return this // for chaining
 	}
 
 	create() {
@@ -126,15 +149,11 @@ class Game {
 		const dialogueData = this.dialogues![this._dialoguePointer] // guaranteed to exist since this.ready is true
 
 		if (this.dialogueNextEvent) {
-			this.dialogueNextEvent()
+			this.dialogueNextEvent(dialogueData)
 		}
-	}
-
-	start() {
-		/**
-		 * starts the game by initialising the game timer
-		 */
-		this.gameStartTime = +new Date()
+		if (this.dialogueAttemptNextEvent) {
+			this.dialogueAttemptNextEvent(dialogueData, dialogueData.attempts[0])
+		}
 	}
 
 	respond(responseText: string, timeTaken: number): RESPONSE_STATUS {
