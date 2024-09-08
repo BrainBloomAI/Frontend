@@ -40,7 +40,7 @@ type DialogueEntry = {
 	attempts: Array<AttemptEntry>
 }
 
-type GameData = {
+export type GameData = {
 	title: string,
 	scenario: string,
 	visualise: {
@@ -77,7 +77,7 @@ export class Game {
 
 	constructor() {
 		// states and references
-		this._dialoguePointer = 0 // initial state
+		this._dialoguePointer = -1 // initial state
 
 		this.ready = false
 		this.gameEnded = false
@@ -93,6 +93,7 @@ export class Game {
 		if (true) {
 			// API validate user has access to gameId
 			this.ready = true
+			this.dialogues = []
 
 			this.data = {
 				title: "API",
@@ -103,6 +104,29 @@ export class Game {
 			}
 
 			this.gameEnded = false // API see game state
+
+			// API populate computer prompt
+			this._dialoguePointer = -1
+			this.dialogues.push({
+				id: "abc",
+				speaker: SPEAKER_ID.System,
+				successful: true,
+
+				createdTimestamp: "T",
+				gameId: this.gameId,
+
+				attempts: [{
+					id: "cba",
+
+					attemptNumber: 1,
+					content: "[Customer walks in with basket full of goods]",
+					successful: true,
+
+					timeTaken: 0,
+					dialogueId: "abc"
+				}]
+			})
+			this._loadNext()
 		}
 
 		return this // for chaining
@@ -143,6 +167,7 @@ export class Game {
 		if (this._dialoguePointer >= this.dialogues!.length -1) {
 			// out of range
 			// throw error
+			throw new GameError(`Trying to invoke controller._loadNext, however this._dialoguePointer exceeds this.dialogues.length, this._dialoguePointer = ${this._dialoguePointer}`)
 		}
 
 		this._dialoguePointer++
