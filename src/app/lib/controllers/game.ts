@@ -72,8 +72,8 @@ export class Game {
 
 	_dialoguePointer: number // index of current dialogue
 
-	dialogueNextEvent?: (dialogueEntry: DialogueEntry) => undefined // fired whenever new dialogue appears
-	dialogueAttemptNextEvent?: (dialogueEntry: DialogueEntry, attemptEntry: AttemptEntry) => undefined // fired whenever new attempt appears (first attempt fires immediately right after dialogue gets created)
+	dialogueNextEvent?: (dialogueEntry: DialogueEntry) => void|Promise<void> // fired whenever new dialogue appears
+	dialogueAttemptNextEvent?: (dialogueEntry: DialogueEntry, attemptEntry: AttemptEntry) => void|Promise<void> // fired whenever new attempt appears (first attempt fires immediately right after dialogue gets created)
 
 	constructor() {
 		// states and references
@@ -202,12 +202,32 @@ export class Game {
 			throw new GameEndedError(`Trying to invoke controller.reespond, however this.gameEnded = ${this.gameEnded}`)
 		}
 
-		let responseTime = +new Date() // unix epoch UTC, milliseconds
-		this.dialogues!.push([responseText, SPEAKER_ID.User, responseTime, responseTime -timeTaken])
+		this.dialogues!.push({
+			id: "ABC",
+			speaker: SPEAKER_ID.User,
+			successful: true,
+
+			createdTimestamp: "T",
+			gameId: "abc",
+
+			attempts: [{
+				id: "cba",
+
+				attemptNumber: 1,
+				content: responseText,
+				successful: true,
+
+				timeTaken: timeTaken /1000, // convert it to seconds
+				dialogueId: "ABC"
+			}]
+		})
+
+		// fire event
+		this._loadNext()
 
 		// build computer response
-		let computerResponseTime = responseTime +(1 +Math.random() *1000) // introduce varying delay between 1-2s
-		this.dialogues!.push(["MY REPSONSE", SPEAKER_ID.System, computerResponseTime, computerResponseTime +5000])
+		// let computerResponseTime = responseTime +(1 +Math.random() *1000) // introduce varying delay between 1-2s
+		// this.dialogues!.push(["MY REPSONSE", SPEAKER_ID.System, computerResponseTime, computerResponseTime +5000])
 
 		return 0
 	}

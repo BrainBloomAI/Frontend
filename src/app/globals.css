@@ -13,6 +13,14 @@
   animation-duration: 500ms;
 }
 
+@keyframes radial-grow {
+  from {
+    transform: scale(70%);
+  } to {
+    transform: scale(98%);
+  }
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
