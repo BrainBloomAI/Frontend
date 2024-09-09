@@ -1,6 +1,6 @@
 import 'server-only'
  
-import { createSession, decrypt, getSession } from '@/app/lib/sessionManager'
+import { createSession, decrypt, getSession, overwriteSession } from '@/app/lib/sessionManager'
 import { cookies } from 'next/headers'
 import { cache } from 'react'
 import { redirect } from 'next/navigation'
@@ -22,30 +22,16 @@ export const upgradeSession = async (authToken: string) => {
 	session._authTokenValidDuration = 1.08e+7 // 3 hours
 	session._authTokenFetchTime = +new Date()
 	session.authToken = authToken
-}
 
-export const authenticateSession = async (creds: { username: string, password: string}): Promise<boolean> => {
-	/**
-	 * authenticate session with supplied username and password
-	 * 
-	 * returns true if authentication successful, otherwise false
-	 */
-	let session = await getSession()
-	if (session == null) {
-		// get new session
-		session = await createSession()
-	}
+	// update expire timings
+	session.expiresAt = new Date(+new Date() +6.048e+8)
 
-	// authenticate username and password
-	if (creds.username && creds.password) {
-		// valid
-		const authToken = "ABC" // API (if not able to get auth token, return false)
-		await upgradeSession(authToken) // upgrade session privileges
+	console.log("authenticated session", session)
 
-		return true
-	} else {
-		return false
-	}
+	// overwrite cookie session
+	overwriteSession(session)
+
+	return session
 }
 
 export const verifySession = cache(async () => {
@@ -62,5 +48,5 @@ export const verifySession = cache(async () => {
 		redirect('/login')
 	}
  
-	return { isAuth: true, userId: session.userId }
+	return { isAuth: true }
 })

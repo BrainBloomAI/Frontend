@@ -1,10 +1,19 @@
-import logo from "@/public/branding/logo.svg"
+"use server"
 
-export default function RootLayout({
+import logo from "@/public/branding/logo.svg"
+import { isAuthenticated } from "../actions";
+import { redirect } from "next/navigation";
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+
+  if (await isAuthenticated()) {
+    return redirect("/games")
+  }
+
   return (
     <>
       <div id="guest-bg" className="p-8 flex flex-col bg-white h-svh">

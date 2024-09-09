@@ -1,8 +1,8 @@
 import "server-only"
 
-import { JWTDecryptResult, JWTPayload, SignJWT, jwtVerify } from 'jose'
+import { SignJWT, jwtVerify } from 'jose'
 import { cookies } from "next/headers"
-import { Session } from "inspector"
+import axios, { AxiosInstance } from "axios"
 
 const SECRET_KEY = process.env.SECRET_KEY
 const encodedSecretKey = new TextEncoder().encode(SECRET_KEY)
@@ -17,7 +17,19 @@ type SessionPayload = {
 	_authTokenValidDuration?: number, // milliseconds
 }
 
-type ExtSessionPayload = SessionPayload & JWTPayload
+type ExtSessionPayload = SessionPayload & {
+	bridge: AxiosInstance
+}
+
+function createBridge(authToken?: string) {
+	return axios.create({
+		baseURL: "http://localhost:8000",
+		timeout: 1000,
+		headers: {
+			authtoken: authToken
+		}
+	})
+}
 
 export async function encrypt(payload: SessionPayload) {
 	return new SignJWT(payload)
@@ -58,24 +70,40 @@ export async function setCookie(session: string, expires: Date) {
 	})
 }
 
-export async function createSession(): Promise<SessionPayload> {
+export async function createSession(): Promise<ExtSessionPayload> {
 	const now = +new Date()
 	const expiresAt = new Date(now +6.048e+8) // 7 days
 
-	const sessionData = { authenticated: false, expiresAt: expiresAt }
+	const sessionData = { authenticated: false, expiresAt: expiresAt } as ExtSessionPayload
 	const session = await encrypt(sessionData)
 
 	setCookie(session, expiresAt)
+
+	// extends session data to include bridge
+	sessionData.bridge = createBridge()
 	return sessionData
 }
 
-export async function getSession() {
+export async function getSession(): Promise<ExtSessionPayload|undefined> {
 	const cookie = getCookie()
 	if (cookie == null) {
 		return
 	}
 
-	return await decrypt(cookie)
+	const sessionData = await decrypt(cookie) as ExtSessionPayload
+	if (sessionData == null) {
+		return
+	}
+
+	sessionData.bridge = createBridge(sessionData.authToken)
+	return sessionData
+}
+
+export async function overwriteSession(session: ExtSessionPayload) {
+	const { bridge, ...strippedSession } = session
+
+	const encrypted = await encrypt(strippedSession)
+	setCookie(encrypted, session.expiresAt)
 }
 
 export async function updateSession() {
