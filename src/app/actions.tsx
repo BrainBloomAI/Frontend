@@ -118,38 +118,93 @@ export async function getScenarioList() {
 		return
 	}
 
-	const scenarioList: Array<ScenarioEntry>|undefined = await session.bridge.get("/game/scenarios").then(r => {
+	const scenarioList: Array<ScenarioEntry>|undefined = await session.bridge.get("/game/scenarios").then(async r => {
 		if (r.status === 200) {
-			return r.data.map(async (entry: ScenarioEntry) => {
-				// convert backgroundImage to blob
-				entry.backgroundImage = await fetch(`${session.bridge.defaults.baseURL}/public/img/${entry.backgroundImage}`)
-					.then(r => {
-						if (r.status === 20) {
-							return r.blob()
-						}
-
-						return Promise.reject(r.status)
-					}).then(blob => {
-						return new Promise((res: (dataURL: string) => void, rej) => {
-							const reader = new FileReader()
-							reader.onload = _ => {
-								res(reader.result as string)
-							}
-							reader.onerror = err => {
-								rej(reader.error)
+			const updatedEntries = await Promise.all(
+				r.data.map(async (entry: ScenarioEntry) => {
+					// convert backgroundImage to blob
+					console.log("fetching", `${session.bridge.defaults.baseURL}/public/img/${entry.backgroundImage}`)
+					entry.backgroundImage = await fetch(`${session.bridge.defaults.baseURL}/public/img/${entry.backgroundImage}`)
+						.then(r => {
+							console.log("r.status", r.status)
+							if (r.status === 200) {
+								return r.blob()
 							}
 
-							reader.readAsDataURL(blob)
+							return Promise.reject(r.status)
+						}).then(blob => {
+							return new Promise((res: (dataURL: string) => void, rej) => {
+								const reader = new FileReader()
+								reader.onload = _ => {
+									res(reader.result as string)
+								}
+								reader.onerror = err => {
+									rej(reader.error)
+								}
+
+								reader.readAsDataURL(blob)
+							})
+						}).catch(err => {
+							console.log("rejected")
+							return "https://cdn-icons-png.flaticon.com/512/3593/3593455.png" // default placeholder
 						})
-					}).catch(err => {
-						return "https://cdn-icons-png.flaticon.com/512/3593/3593455.png" // default placeholder
-					})
-			})
+
+					console.log(`updated: ${entry.backgroundImage}`)
+					return entry
+				})
+			)
+
+			console.log("returned")
+			return r.data
 		}
+
+		return Promise.reject(-1)
 	}).catch(err => {
 		// server failed to respond
 		console.warn("getScenarioList() failed to obtain a response, will silently fail")
 	})
 
 	return scenarioList
+}
+
+export async function createNewGame(scenarioID: string) {
+	/**
+	 * creates a new game with the supplied scenarioID
+	 */
+	let session = await getSession()
+	if (!session || session.authenticated === false) {
+		// not authenticated
+		return {
+			success: false,
+			message: "Not authenticated"
+		}
+	}
+
+	let errorMessage: string|undefined;
+	const gameID = await session.bridge.post("/game/new", {
+		scenarioID
+	}).then(r => {
+		if (r.status === 200) {
+			return r.data.gameID
+		}
+
+		return Promise.reject(r.status)
+	}).catch(err => {
+		// server failed to respond
+		errorMessage = err.response.data.split(": ")[1]
+		console.warn("createNewGame() failed to obtain a response, will fail")
+	})
+
+	if (gameID) {
+		redirect(`/games/${gameID}`)
+		return {
+			success: true
+		}
+	} else {
+		console.log("FAILED", errorMessage)
+		return {
+			success: false,
+			message: errorMessage ?? "Failed to communicate with server (3)"
+		}
+	}
 }
