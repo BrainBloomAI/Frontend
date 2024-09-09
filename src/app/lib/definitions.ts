@@ -53,3 +53,13 @@ export type FormState =
 			message?: string
 		}
 	| undefined
+
+export type ScenarioEntry = {
+	scenarioID: string;
+	name: string;
+	backgroundImage: string;
+	description: string;
+	created: string;   // ISO date string
+	createdAt: string; // ISO date string
+	updatedAt: string; // ISO date string
+}

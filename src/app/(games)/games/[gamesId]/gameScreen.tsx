@@ -11,11 +11,12 @@ import { Dispatch, RefObject, SetStateAction, useEffect, useReducer, useRef, use
 import { Console } from "console"
 import { SpeechRecognitionWrapper } from "@/app/lib/synthesiser"
 import { updateSession } from "@/app/lib/sessionManager"
+import { GameTheme } from "@/app/(games)/games/config"
 
 const activeDialogueInFocus = "font-bold text-2xl text-white"
 const activeDialogueOutOfFocus = "font-bold text-xl text-slate-200"
 
-const NBSP = " "
+const NBSP = " " // non-breaking space for empty lines
 
 const typeText = async (text: string, containerRef: RefObject<HTMLDivElement>, typingContentState: Dispatch<SetStateAction<string>>) => {
 	if (!containerRef.current) {
@@ -260,10 +261,6 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 			SRW.onStart = undefined // unset
 		}
 	}, [speakerIndicatorRef, typingContainerRef])
-
-	const GameTheme = {
-		background: "bg-gray-900"
-	}
 
 	return (
 		<main className={`${GameTheme.background} text-white flex flex-col h-svh`}>
