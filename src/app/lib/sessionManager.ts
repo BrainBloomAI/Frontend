@@ -21,14 +21,62 @@ type ExtSessionPayload = SessionPayload & {
 	bridge: AxiosInstance
 }
 
-function createBridge(authToken?: string) {
-	return axios.create({
-		baseURL: "http://localhost:8000",
+// TODO: move bridge logic to its own separate file
+const BRIDGE_CONFIG = {
+	baseURL: "http://localhost:8000",
+	authTokenHeaderKeyName: "authtoken",
+}
+
+function createBridge(authToken?: string, _retrievedAt?: number, _authTokenValidDuration?: number) {
+	/**
+	 * authToken: string, supplied authToken to be passed into header of every call
+	 * _retrievedAt: number, unix epoch in milliseconds when authToken was granted (must be present if authToken is supplied)
+	 * _authTokenValidDuration: number, number of milliseconds authToken is valid for after point of grant (must be present if authToken is supplied)
+	 * 
+	 * returns an AxiosInstance for HTTP requests to backend
+	 */
+	const inst = axios.create({
+		baseURL: BRIDGE_CONFIG.baseURL,
 		timeout: 1000,
 		headers: {
-			authtoken: authToken
+			[BRIDGE_CONFIG.authTokenHeaderKeyName]: authToken
 		}
 	})
+
+	if (authToken && _retrievedAt && _authTokenValidDuration) {
+		inst.interceptors.request.use((config) => {
+			if (+new Date() -_retrievedAt >= _authTokenValidDuration -600000) {
+				// 10 minutes before expiry -> get new token
+				const refreshedToken = axios({
+					method: "POST",
+					url: `${BRIDGE_CONFIG.baseURL}/identity/refreshSession`,
+					headers: {
+						authtoken: authToken // lowercase headers
+					}
+				}).then(r => {
+					if (r.status === 200) {
+						return r.data.slice(-10) // extract token
+					}
+
+					throw new Error(`Unhandled error, ${r.status}`)
+				}).catch(err => {
+					console.warn("FAILED: Unable to refresh authToken with err", err)
+				})
+
+				if (refreshedToken) {
+					// managed to obtain a valid refresh token
+					inst.defaults.headers[BRIDGE_CONFIG.authTokenHeaderKeyName] = refreshedToken
+				} else {
+					// expired??
+					// TODO: figure it out
+				}
+			}
+		})
+	} else if (authToken) {
+		console.warn("WARN: Bridge created with authToken, but token parameters were never passed")
+	}
+
+	return inst
 }
 
 export async function encrypt(payload: SessionPayload) {

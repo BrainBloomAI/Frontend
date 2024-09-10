@@ -85,7 +85,7 @@ export async function signup(state: FormState, formData: FormData) {
 		} else {
 			return Promise.reject(r.status)
 		}
-	}).catch(err => {
+	}).catch(err => { // TODO: FIX
 		if (err.status === 400) {
 			errorMessage = err.response.data
 		}
@@ -159,7 +159,7 @@ export async function getScenarioList() {
 		}
 
 		return Promise.reject(-1)
-	}).catch(err => {
+	}).catch(err => { // TODO: FIX TYPECAST
 		// server failed to respond
 		console.warn("getScenarioList() failed to obtain a response, will silently fail")
 	})
@@ -189,7 +189,7 @@ export async function createNewGame(scenarioID: string) {
 		}
 
 		return Promise.reject(r.status)
-	}).catch(err => {
+	}).catch(err => { // TODO: err is Erroobject and r.status
 		// server failed to respond
 		errorMessage = err.response.data.split(": ")[1]
 		console.warn("createNewGame() failed to obtain a response, will fail")
