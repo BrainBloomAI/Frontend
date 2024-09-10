@@ -1,31 +1,19 @@
-"use client"
+"use server"
 
-import { Game, SPEAKER_ID } from "@/app/lib/controllers/game"
-
-import asset_01 from "@/public/games/asset_01.png"
-import icon_mic from "@/public/icons/microphone.svg"
-
-import { StaticImageData } from "next/image"
 import { redirect } from "next/navigation"
-import { createContext, RefObject, useRef } from "react"
-import GameInterface from "@/app/(games)/games/[gamesId]/gameScreen"
+import GameInterface from "@/app/(games)/games/[gamesId]/gameInterface"
+import { getGameData } from "@/app/actions"
 
-
-type GameContext = {
-	speakerIndicatorRef?: RefObject<HTMLDivElement>,
-	typingContainerRef?: RefObject<HTMLParagraphElement>
-}
-
-const GameContext = createContext<GameContext>({})
-
-export default function GamePage({ params }: { params: { gamesId: string }}) {
-	const speakerIndicatorRef = useRef<HTMLDivElement>(null)
-	const typingContainerRef = useRef<HTMLParagraphElement>(null)
+export default async function GameContainer({ params }: { params: { gamesId: string }}) {
+	// get game data
+	const gameData = getGameData(params.gamesId)
+	if (gameData == null) {
+		// not able to fetch game data
+		return redirect("/games?_referred-by=1")
+	}
 
 	return (
-		<GameContext.Provider value={{ speakerIndicatorRef, typingContainerRef }}>
-			<GameInterface gamesId={params.gamesId} />
-		</GameContext.Provider>
+		<GameInterface gamesId={params.gamesId} gameData={gameData} />
 	)
 }
 

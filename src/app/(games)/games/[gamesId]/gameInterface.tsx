@@ -12,6 +12,7 @@ import { Console } from "console"
 import { SpeechRecognitionWrapper } from "@/app/lib/synthesiser"
 import { updateSession } from "@/app/lib/sessionManager"
 import { GameTheme } from "@/app/(games)/games/config"
+import { GameDescriptionData } from "@/app/lib/definitions"
 
 const activeDialogueInFocus = "font-bold text-2xl text-white"
 const activeDialogueOutOfFocus = "font-bold text-xl text-slate-200"
@@ -135,7 +136,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 	const speakerIndicatorRef = useRef<HTMLDivElement>(null)
 	const typingContainerRef = useRef<HTMLParagraphElement>(null)
 
-	const [gameData, setGameData] = useState<GameData>()
+	const [gameData, setGameData] = useState<GameDescriptionData>()
 
 	useEffect(() => {
 		let SRW = new SpeechRecognitionWrapper()
@@ -185,7 +186,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 				micIndicatorRef.current.style.display = "flex"
 
 				// start recording session
-				let start: number;
+				let start: number = +new Date();
 				SRW.onStart = (recordingSession) => {
 					recordingSession.updateContent = (updatedContents) => {
 						console.log(`"${updatedContents}"`)
@@ -221,7 +222,6 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 					}
 				}
 
-				start = +new Date()
 				SRW.start() // start speech recognition
 			} else if (dialogueEntry.speaker === SPEAKER_ID.User) {
 				// show pulsating text
@@ -253,7 +253,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 				return redirect("/")
 			}
 
-			setGameData(gameController.data)
+			setGameData(gameController.data!)
 		}
 
 		return () => {

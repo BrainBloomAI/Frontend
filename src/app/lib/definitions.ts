@@ -54,6 +54,9 @@ export type FormState =
 		}
 	| undefined
 
+/**
+ * FOR GAMES
+ */
 export type ScenarioEntry = {
 	scenarioID: string;
 	name: string;
@@ -62,4 +65,55 @@ export type ScenarioEntry = {
 	created: string;   // ISO date string
 	createdAt: string; // ISO date string
 	updatedAt: string; // ISO date string
+}
+
+export enum SPEAKER_ID {
+	System, // scenario computer reponse
+	User // PWIDs
+}
+
+export enum RESPONSE_STATUS {
+	Okay,
+	Improvement,
+	NotOkay
+}
+
+export type AttemptEntry = {
+	id: string,
+
+	attemptNumber: number,
+	content: string,
+	successful: boolean
+
+	timeTaken: number,
+	dialogueId: string
+}
+
+export type DialogueEntry = {
+	id: string,
+	speaker: SPEAKER_ID,
+	successful: boolean,
+
+	createdTimestamp: string, // iso format
+	gameID: string,
+
+	attempts: Array<AttemptEntry>
+}
+
+export type GameData = {
+	gameID: string,
+	startedTimestamp: string, // ISO format
+	status: "ongoing" | "completed" | "failed", // Enum for status
+	userID: string,
+	scenarioID: string,
+	dialogues: Array<DialogueEntry>,
+	scenarioData: {
+		name: string,
+		backgroundImage: string
+	}
+}
+
+export type GameDescriptionData = {
+	title: string,
+	backgroundImage: string	
 }

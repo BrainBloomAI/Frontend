@@ -1,3 +1,8 @@
+"use server"
+
+import { getGameData, newDialogue } from "@/app/actions"
+import { SPEAKER_ID, RESPONSE_STATUS, AttemptEntry, DialogueEntry, GameData, GameDescriptionData } from "@/app/lib/definitions"
+
 /**
  * front-end wrapper to interact with backend interface
  * controls game logic (game master)
@@ -6,48 +11,6 @@
  * 	a. computer
  * 	b. user (PWIDs)
  */
-
-export enum SPEAKER_ID {
-	System, // scenario computer reponse
-	User // PWIDs
-}
-
-export enum RESPONSE_STATUS {
-	Okay,
-	IMprovement,
-	NotOkay
-}
-
-type AttemptEntry = {
-	id: string,
-
-	attemptNumber: number,
-	content: string,
-	successful: boolean
-
-	timeTaken: number,
-	dialogueId: string
-}
-
-type DialogueEntry = {
-	id: string,
-	speaker: SPEAKER_ID,
-	successful: boolean,
-
-	createdTimestamp: string, // iso format
-	gameId: string,
-
-	attempts: Array<AttemptEntry>
-}
-
-export type GameData = {
-	title: string,
-	scenario: string,
-	visualise: {
-		src: string
-	}	
-}
-
 class GameError extends Error {
 	constructor(msg: string) {
 		super(msg)
@@ -66,9 +29,9 @@ export class Game {
 	ready: boolean
 	gameEnded: boolean
 
-	gameId?: string
+	gameID?: string
 	dialogues?: Array<DialogueEntry>
-	data?: GameData
+	data?: GameDescriptionData
 
 	_dialoguePointer: number // index of current dialogue
 
@@ -83,50 +46,36 @@ export class Game {
 		this.gameEnded = false
 	}
 
-	async register(gameId: string) {
+	async register(gameID: string) {
 		/**
-		 * registers this game object with the gameId
-		 * will load data related to gameId if user has access to it (controlled by backend)
+		 * registers this game object with the gameID
+		 * will load data related to gameID if user has access to it (controlled by backend)
 		 */
-		this.gameId = gameId
+		this.gameID = gameID
 
-		if (true) {
-			// API validate user has access to gameId
-			this.ready = true
-			this.dialogues = []
+		const gameDataPayload = await getGameData(gameID)
+		if (gameDataPayload.success) {
+			const gameData = gameDataPayload.data!
 
+			// set data
 			this.data = {
-				title: "API",
-				scenario: "API",
-				visualise: {
-					src: "ABC"
-				}
+				title: gameData.scenarioData.name,
+				backgroundImage: gameData.scenarioData.backgroundImage
 			}
 
-			this.gameEnded = false // API see game state
+			// set states
+			this.ready = true
+			this.gameEnded = gameData.status !== "ongoing"
 
-			// API populate computer prompt
+			this.dialogues = gameData.dialogues // HERE
 			this._dialoguePointer = -1
-			this.dialogues.push({
-				id: "abc",
-				speaker: SPEAKER_ID.System,
-				successful: true,
 
-				createdTimestamp: "T",
-				gameId: this.gameId,
-
-				attempts: [{
-					id: "cba",
-
-					attemptNumber: 1,
-					content: "[Customer walks in with basket full of goods]",
-					successful: true,
-
-					timeTaken: 0,
-					dialogueId: "abc"
-				}]
-			})
-			this._loadNext()
+			for (let i = 0; i < this.dialogues.length; i++) {
+				this._loadNext()
+			}
+		} else {
+			// failed
+			this.ready = false
 		}
 
 		return this // for chaining
@@ -136,11 +85,11 @@ export class Game {
 		/**
 		 * invokes POST /game/create
 		 * 
-		 * sets this.gameId along with initialisation
+		 * sets this.gameID along with initialisation
 		 * 
 		 * will set this.ready to True if successful, otherwise remains False (default value)
 		 */
-		this.gameId = "GAMEID"
+		this.gameID = "GAMEID"
 		this.dialogues = []
 
 		this.ready = true
@@ -181,7 +130,7 @@ export class Game {
 		}
 	}
 
-	respond(responseText: string, timeTaken: number): RESPONSE_STATUS {
+	async respond(responseText: string, timeTaken: number): Promise<RESPONSE_STATUS> {
 		/**
 		 * responseText: string, user response to prompt
 		 * timeTaken: number, milliseconds it took user to complete the prompt (speech converted to text)
@@ -202,32 +151,41 @@ export class Game {
 			throw new GameEndedError(`Trying to invoke controller.reespond, however this.gameEnded = ${this.gameEnded}`)
 		}
 
-		this.dialogues!.push({
-			id: "ABC",
-			speaker: SPEAKER_ID.User,
-			successful: true,
+		let timeTakenS = timeTaken /1000 // convert it to seconds
 
-			createdTimestamp: "T",
-			gameId: "abc",
+		let responsePayload = await newDialogue(responseText, timeTakenS) // convert it to seconds
+		if (!responsePayload.success) {
+			throw new GameError("Failed to invoke inner API")
+		}
 
-			attempts: [{
-				id: "cba",
-
-				attemptNumber: 1,
-				content: responseText,
+		const responseData = responsePayload.data
+		if ('aiResponse' in responseData) {
+			// success
+			this.dialogues!.push({
+				id: "-", // placeholder ID since not important
+				speaker: SPEAKER_ID.User,
 				successful: true,
 
-				timeTaken: timeTaken /1000, // convert it to seconds
-				dialogueId: "ABC"
-			}]
-		})
+				createdTimestamp: new Date().toISOString(),
+				gameID: this.gameID!,
 
-		// fire event
-		this._loadNext()
+				attempts: [{
+					id: "-", // placeholder ID since not important
 
-		// build computer response
-		// let computerResponseTime = responseTime +(1 +Math.random() *1000) // introduce varying delay between 1-2s
-		// this.dialogues!.push(["MY REPSONSE", SPEAKER_ID.System, computerResponseTime, computerResponseTime +5000])
+					attemptNumber: 1,
+					content: responseText,
+					successful: true,
+
+					timeTaken: timeTakenS, // convert it to seconds
+					dialogueId: "-"
+				}]
+			})
+
+			// fire event
+			this._loadNext()
+
+			// push system response
+		}
 
 		return 0
 	}

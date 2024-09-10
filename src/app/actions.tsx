@@ -5,6 +5,8 @@ import { createSession, getSession } from "@/app/lib/sessionManager"
 import { upgradeSession } from "@/app/lib/dataAccessLayer"
 import { redirect } from "next/navigation"
 
+import { GameData } from "@/app/lib/definitions"
+
 export async function login(state: FormState, formData: FormData) {
 	const validatedFields = LoginFormSchema.safeParse({
 		name: formData.get("name"),
@@ -183,15 +185,17 @@ export async function createNewGame(scenarioID: string) {
 	let errorMessage: string|undefined;
 	const gameID = await session.bridge.post("/game/new", {
 		scenarioID
-	}).then(r => {
+	}).then((r: Response & { data: { gameID: string }}) => {
 		if (r.status === 200) {
 			return r.data.gameID
 		}
 
-		return Promise.reject(r.status)
-	}).catch(err => { // TODO: err is Erroobject and r.status
+		throw new Error(`FAILED: Caught status in createNewGame(), ${r.status}`)
+	}).catch((err: any) => { // TODO: err is Erroobject and r.status
 		// server failed to respond
-		errorMessage = err.response.data.split(": ")[1]
+		if (err.response) {
+			errorMessage = err.response.data.split(": ")[1]
+		}
 		console.warn("createNewGame() failed to obtain a response, will fail")
 	})
 
@@ -205,6 +209,116 @@ export async function createNewGame(scenarioID: string) {
 		return {
 			success: false,
 			message: errorMessage ?? "Failed to communicate with server (3)"
+		}
+	}
+}
+
+export async function getGameData(gameID: string) {
+	/**
+	 * gets gameData from server based on gameID
+	 */
+	let session = await getSession()
+	if (!session || session.authenticated === false) {
+		// not authenticated
+		return {
+			success: false,
+			message: "Not authenticated"
+		}
+	}
+
+	let errorMessage: string|undefined;
+	const gameData: GameData|undefined = await session.bridge.post("/game/new", {
+		gameID
+	}).then((r: Response & { data: GameData }) => {
+		if (r.status === 200) {
+			return r.data
+		}
+
+		throw new Error(`FAILED: Caught status in getGameData(), ${r.status}`)
+	}).catch((err: any) => { // TODO: err is Erroobject and r.status
+		// server failed to respond
+		if (err.response) {
+			errorMessage = err.response.data.split(": ")[1]
+		}
+		console.warn("createNewGame() failed to obtain a response, will fail")
+	})
+
+	if (gameData) {
+		return {
+			success: true,
+			data: gameData
+		}
+	} else {
+		console.log("FAILED", errorMessage)
+		return {
+			success: false,
+			message: errorMessage ?? "Failed to communicate with server (3)"
+		}
+	}
+}
+
+
+type NewDialogueBackendResponse = {
+	message: string,
+	suggestedAIResponse: string
+} | {
+	message: string,
+	aiResponse: {
+		attemptID: string,
+		dialogueID: string,
+		attemptNumber: number,
+		content: string,
+		successful: boolean,
+		timestamp: string, // ISO format
+		timeTaken: number, // seconds
+		updatedAt: string, // ISO format
+		createdAt: string // ISO format
+	}
+} | {
+	message: string
+}
+
+export async function newDialogue(content: string, timeTaken: number): Promise<{success: true, data: NewDialogueBackendResponse}|{success: false, message: string}> {
+	/**
+	 * content: string,
+	 * timeTaken: number, seconds
+	 */
+	let session = await getSession()
+	if (!session || session.authenticated === false) {
+		// not authenticated
+		return {
+			success: false,
+			message: "Not authenticated"
+		}
+	}
+
+	let errorMessage: string|undefined;
+	const response: NewDialogueBackendResponse = await session.bridge.post("/game/newDialogue", {
+		content, timeTaken, debugSuccess: true
+	}).then((r: Response & { data: GameData }) => {
+		if (r.status === 200) {
+			return r.data
+		}
+
+		throw new Error(`FAILED: Caught status in newDialogue(), ${r.status}`)
+	}).catch((err: any) => { // TODO: err is Erroobject and r.status
+		// server failed to respond
+		if (err.response) {
+			errorMessage = err.response.data.split(": ")[1]
+		}
+		console.warn("newDialogue() failed to obtain a response, will fail")
+	})
+
+	if (response) {
+		return {
+			success: true,
+			data: response
+		}
+	} else {
+		console.log("FAILED", errorMessage)
+		return {
+			success: false,
+			message: errorMessage ?? "Failed to communicate with server (4)"
 		}
 	}
 }
