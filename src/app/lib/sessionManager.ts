@@ -44,7 +44,9 @@ function createBridge(authToken?: string, _retrievedAt?: number, _authTokenValid
 	})
 
 	if (authToken && _retrievedAt && _authTokenValidDuration) {
-		inst.interceptors.request.use((config) => {
+		inst.interceptors.request.use((config: any) => {
+			const controller = new AbortController()
+
 			if (+new Date() -_retrievedAt >= _authTokenValidDuration -600000) {
 				// 10 minutes before expiry -> get new token
 				const refreshedToken = axios({
@@ -53,13 +55,13 @@ function createBridge(authToken?: string, _retrievedAt?: number, _authTokenValid
 					headers: {
 						authtoken: authToken // lowercase headers
 					}
-				}).then(r => {
+				}).then((r: Response & { data: string }) => {
 					if (r.status === 200) {
 						return r.data.slice(-10) // extract token
 					}
 
 					throw new Error(`Unhandled error, ${r.status}`)
-				}).catch(err => {
+				}).catch((err: any) => {
 					console.warn("FAILED: Unable to refresh authToken with err", err)
 				})
 
@@ -67,9 +69,14 @@ function createBridge(authToken?: string, _retrievedAt?: number, _authTokenValid
 					// managed to obtain a valid refresh token
 					inst.defaults.headers[BRIDGE_CONFIG.authTokenHeaderKeyName] = refreshedToken
 				} else {
-					// expired??
-					// TODO: figure it out
+					// not able to refresh token, abort request
+					controller.abort()
 				}
+			}
+
+			return {
+				...config,
+				signal: controller.signal
 			}
 		})
 	} else if (authToken) {
