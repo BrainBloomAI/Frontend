@@ -108,12 +108,18 @@ export type GameData = {
 	scenarioID: string,
 	dialogues: Array<DialogueEntry>,
 	scenarioData: {
-		name: string,
-		backgroundImage: string
+        scenarioID: string,
+        name: string, // retail
+        backgroundImage: string, // baseURL/public/img/${backgroundImage}
+        description: string,
+        modelRole: string, // customer
+        userRole: string, // retail worker
+        created: string // ISO format
 	}
 }
 
 export type GameDescriptionData = {
-	title: string,
+	title: string, // retail
+	subtitle: string, // retail workrer
 	backgroundImage: string	
 }

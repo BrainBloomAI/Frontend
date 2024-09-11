@@ -5,14 +5,14 @@ import asset_01 from "@/public/games/asset_01.png"
 import { Microphone } from "@phosphor-icons/react"
 
 import { StaticImageData } from "next/image"
-import { Game, GameData, SPEAKER_ID } from "@/app/lib/controllers/game"
+import { Game } from "@/app/lib/controllers/game"
+import { GameDescriptionData, GameData, SPEAKER_ID } from "@/app/lib/definitions"
 import { redirect } from "next/navigation"
 import { Dispatch, RefObject, SetStateAction, useEffect, useReducer, useRef, useState } from "react"
 import { Console } from "console"
 import { SpeechRecognitionWrapper } from "@/app/lib/synthesiser"
 import { updateSession } from "@/app/lib/sessionManager"
 import { GameTheme } from "@/app/(games)/games/config"
-import { GameDescriptionData } from "@/app/lib/definitions"
 
 const activeDialogueInFocus = "font-bold text-2xl text-white"
 const activeDialogueOutOfFocus = "font-bold text-xl text-slate-200"
@@ -250,7 +250,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 			gameController.register(gamesId) // only register after attaching all the event listeners
 			if (!gameController.ready) {
 				// failed to load game object -> unable to render game, send back home page
-				return redirect("/")
+				return redirect("/games?_referred-by=2")
 			}
 
 			setGameData(gameController.data!)
@@ -266,10 +266,10 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 		<main className={`${GameTheme.background} text-white flex flex-col h-svh`}>
 			<div className="flex flex-col items-center p-3">
 				<h1 className="font-bold text-xl">{gameData?.title}</h1>
-				<p>[{gameData?.scenario}]</p>
+				<p>[{gameData?.subtitle}]</p>
 			</div>
 			<div id="world-mapper" className="grow w-full min-h-0">
-				<img src={gameData?.visualise.src} className="w-full h-full object-cover" />
+				<img src={gameData?.backgroundImage} className="w-full h-full object-cover" />
 			</div>
 			<div className="grow flex flex-col p-3 gap-5">
 				<div ref={shiftTextParentRef} id="text-bounds" className="relative overflow-y-clip grow">

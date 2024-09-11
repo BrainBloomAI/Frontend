@@ -1,4 +1,4 @@
-"use server"
+"use client"
 
 import { getGameData, newDialogue } from "@/app/actions"
 import { SPEAKER_ID, RESPONSE_STATUS, AttemptEntry, DialogueEntry, GameData, GameDescriptionData } from "@/app/lib/definitions"
@@ -54,12 +54,14 @@ export class Game {
 		this.gameID = gameID
 
 		const gameDataPayload = await getGameData(gameID)
+		console.log("\n\n\n\nPAYLOAD", gameDataPayload)
 		if (gameDataPayload.success) {
 			const gameData = gameDataPayload.data!
 
 			// set data
 			this.data = {
 				title: gameData.scenarioData.name,
+				subtitle: gameData.scenarioData.userRole,
 				backgroundImage: gameData.scenarioData.backgroundImage
 			}
 
@@ -185,6 +187,25 @@ export class Game {
 			this._loadNext()
 
 			// push system response
+			this.dialogues!.push({
+				id: responseData.aiResponse.dialogueID, // placeholder ID since not important
+				speaker: SPEAKER_ID.System,
+				successful: true,
+
+				createdTimestamp: responseData.aiResponse.createdAt,
+				gameID: this.gameID!,
+
+				attempts: [{
+					id: responseData.aiResponse.attemptID, // placeholder ID since not important
+
+					attemptNumber: responseData.aiResponse.attemptNumber,
+					content: responseData.aiResponse.content,
+					successful: true,
+
+					timeTaken: responseData.aiResponse.timeTaken, // convert it to seconds
+					dialogueId: responseData.aiResponse.dialogueID
+				}]
+			})
 		}
 
 		return 0

@@ -2,10 +2,13 @@
 
 import { LoginFormSchema, SignupFormSchema, FormState, ScenarioEntry } from "@/app/lib/definitions"
 import { createSession, getSession } from "@/app/lib/sessionManager"
-import { upgradeSession } from "@/app/lib/dataAccessLayer"
+import { downgradeSession, upgradeSession } from "@/app/lib/dataAccessLayer"
 import { redirect } from "next/navigation"
 
 import { GameData } from "@/app/lib/definitions"
+import { AxiosRequestConfig, AxiosResponse } from "axios"
+import { Game } from "./lib/controllers/game"
+import { Console } from "console"
 
 export async function login(state: FormState, formData: FormData) {
 	const validatedFields = LoginFormSchema.safeParse({
@@ -32,9 +35,9 @@ export async function login(state: FormState, formData: FormData) {
 	}).then(r => {
 		if (r.status === 200) {
 			return r.data.slice(-10)
-		} else {
-			return Promise.reject(r.status)
 		}
+
+		throw new Error(`FAILED: Uncaught response code, ${r.status}`)
 	}).catch(err => {
 		if (err.status === 404 || err.status === 401) {
 			errorMessage = err.response.data
@@ -44,7 +47,7 @@ export async function login(state: FormState, formData: FormData) {
 
 	if (authToken) {
 		// managed to obtain authToken
-		upgradeSession(authToken)
+		await upgradeSession(authToken)
 
 		// redirect user
 		return redirect("/games")
@@ -84,9 +87,9 @@ export async function signup(state: FormState, formData: FormData) {
 	}).then(r => {
 		if (r.status === 200) {
 			return r.data.slice(-10)
-		} else {
-			return Promise.reject(r.status)
 		}
+
+		throw new Error(`FAILED: Uncaught response code, ${r.status}`)
 	}).catch(err => { // TODO: FIX
 		if (err.status === 400) {
 			errorMessage = err.response.data
@@ -103,6 +106,62 @@ export async function signup(state: FormState, formData: FormData) {
 	} else {
 		return {
 			message: errorMessage ?? "Failed to communicate with server (2)"
+		}
+	}
+}
+
+export async function logout() {
+	/**
+	 * logouts of current session
+	 */
+	let session = await getSession()
+	console.log('session?', session)
+	if (!session || session.authenticated === false) {
+		// not authenticated
+		return {
+			success: false,
+			message: "Not authenticated"
+		}
+	}
+
+	let errorMessage: string|undefined;
+	const loggedOut = await session.bridge.post("/identity/logout")
+		.then((r: AxiosResponse & { data: { gameID: string }}) => {
+			if (r.status === 200) {
+				return true
+			}
+
+			throw new Error(`FAILED: Caught status in logout(), ${r.status}`)
+		}).catch((err: any) => { // TODO: err is Erroobject and r.status
+			// server failed to respond
+			if (err.response) {
+				if (err.response.status === 401) {
+					// rejected auth token --> same effects as token being revoked
+					return true
+				}
+
+				// fail to revoke token
+				errorMessage = err.response.data.split(": ")[1]
+			}
+			console.warn("logout() failed to obtain a response, will fail!!")
+
+			return false
+		})
+
+	console.log("\n\n\nLOGGEDOUT:", loggedOut)
+	if (loggedOut) {
+		console.log("downgrading")
+		await downgradeSession()
+		redirect("/login")
+
+		return {
+			success: true
+		}
+	} else {
+		console.log("FAILED TO LOGOUT", errorMessage)
+		return {
+			success: false,
+			message: errorMessage ?? "Failed to communicate with server (21)"
 		}
 	}
 }
@@ -163,10 +222,55 @@ export async function getScenarioList() {
 		return Promise.reject(-1)
 	}).catch(err => { // TODO: FIX TYPECAST
 		// server failed to respond
-		console.warn("getScenarioList() failed to obtain a response, will silently fail")
+		console.warn("getScenarioList() failed to obtain a response, will silently fail", err)
 	})
 
 	return scenarioList
+}
+
+export async function abandonGame() {
+	/**
+	 * abandons current active game
+	 */
+	let session = await getSession()
+	if (!session || session.authenticated === false) {
+		// not authenticated
+		return {
+			success: false,
+			message: "Not authenticated"
+		}
+	}
+
+	let errorMessage: string|undefined;
+	const gameID = await session.bridge.post("/game/abandon")
+		.then((r: AxiosResponse & { data: { gameID: string }}) => {
+			if (r.status === 200) {
+				return true
+			}
+
+			throw new Error(`FAILED: Caught status in abandonGame(), ${r.status}`)
+		}).catch((err: any) => { // TODO: err is Erroobject and r.status
+			// server failed to respond
+			if (err.response) {
+				errorMessage = err.response.data.split(": ")[1]
+			}
+			console.warn("abandonGame() failed to obtain a response, will fail", err)
+
+			return false
+		})
+
+	if (gameID) {
+		redirect(`/games`)
+		return {
+			success: true
+		}
+	} else {
+		console.log("FAILED", errorMessage)
+		return {
+			success: false,
+			message: errorMessage ?? "Failed to communicate with server (3)"
+		}
+	}
 }
 
 export async function createNewGame(scenarioID: string) {
@@ -185,7 +289,7 @@ export async function createNewGame(scenarioID: string) {
 	let errorMessage: string|undefined;
 	const gameID = await session.bridge.post("/game/new", {
 		scenarioID
-	}).then((r: Response & { data: { gameID: string }}) => {
+	}).then((r: AxiosResponse & { data: { gameID: string }}) => {
 		if (r.status === 200) {
 			return r.data.gameID
 		}
@@ -196,9 +300,10 @@ export async function createNewGame(scenarioID: string) {
 		if (err.response) {
 			errorMessage = err.response.data.split(": ")[1]
 		}
-		console.warn("createNewGame() failed to obtain a response, will fail")
+		console.warn("createNewGame() failed to obtain a response, will fail!!", err)
 	})
 
+	console.log("\n\n.createNewGame() returned gameID:", gameID)
 	if (gameID) {
 		redirect(`/games/${gameID}`)
 		return {
@@ -226,10 +331,11 @@ export async function getGameData(gameID: string) {
 		}
 	}
 
+	console.log("\n\n\n\n\tFETCHING:", gameID)
 	let errorMessage: string|undefined;
-	const gameData: GameData|undefined = await session.bridge.post("/game/new", {
-		gameID
-	}).then((r: Response & { data: GameData }) => {
+	const gameData: GameData|undefined = await session.bridge.get("/game", {
+		gameID: gameID, includeScenario: true, includeDialogues: true, includeEvaluation: true
+	} as AxiosRequestConfig & { gameID: string, includeScenario?: true, includeDialogues?: true, includeEvaluation?: true }).then((r: AxiosResponse & { data: GameData }) => {
 		if (r.status === 200) {
 			return r.data
 		}
@@ -240,9 +346,10 @@ export async function getGameData(gameID: string) {
 		if (err.response) {
 			errorMessage = err.response.data.split(": ")[1]
 		}
-		console.warn("createNewGame() failed to obtain a response, will fail")
+		console.warn("getGameGame() failed to obtain a response, will fail", err)
 	})
 
+	console.log("\n\n\n\nreturned payload!!\n", gameData)
 	if (gameData) {
 		return {
 			success: true,
@@ -295,7 +402,7 @@ export async function newDialogue(content: string, timeTaken: number): Promise<{
 	let errorMessage: string|undefined;
 	const response: NewDialogueBackendResponse = await session.bridge.post("/game/newDialogue", {
 		content, timeTaken, debugSuccess: true
-	}).then((r: Response & { data: GameData }) => {
+	}).then((r: AxiosResponse & { data: GameData }) => {
 		if (r.status === 200) {
 			return r.data
 		}
