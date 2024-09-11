@@ -6,15 +6,14 @@
 
 "use client"
 
+import { useEffect } from "react"
+
 type RecordingSession = {
 	updateContent?: (updatedContents: string) => void, // speech on-going updates
 	start?: () => void, // speech start
 	end?: (finalCOntents: string) => void // speech end
 }
 
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-const SpeechGrammarList = window.SpeechGrammarList || window.webkitSpeechGrammarList;
-const SpeechRecognitionEvent = window.SpeechRecognitionEvent || window.webkitSpeechRecognitionEvent;
 
 export class SpeechRecognitionWrapper {
 	sr: SpeechRecognition
@@ -23,6 +22,10 @@ export class SpeechRecognitionWrapper {
 	onStart?: (recordingSession: RecordingSession) => void
 
 	constructor() {
+		const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+		const SpeechGrammarList = window.SpeechGrammarList || window.webkitSpeechGrammarList;
+		const SpeechRecognitionEvent = window.SpeechRecognitionEvent || window.webkitSpeechRecognitionEvent;
+
 		// speech recognition instantiate and setup
 		this.sr = new SpeechRecognition()
 		this.sr.continuous = true

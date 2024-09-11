@@ -55,21 +55,21 @@ export class Game {
 
 		const gameDataPayload = await getGameData(gameID)
 		console.log("\n\n\n\nPAYLOAD", gameDataPayload)
-		if (gameDataPayload.success) {
+		if (gameDataPayload.success === true) {
 			const gameData = gameDataPayload.data!
 
 			// set data
 			this.data = {
-				title: gameData.scenarioData.name,
-				subtitle: gameData.scenarioData.userRole,
-				backgroundImage: gameData.scenarioData.backgroundImage
+				title: gameData.scenario.name,
+				subtitle: gameData.scenario.userRole,
+				backgroundImage: gameData.scenario.backgroundImage
 			}
 
 			// set states
 			this.ready = true
 			this.gameEnded = gameData.status !== "ongoing"
 
-			this.dialogues = gameData.dialogues // HERE
+			this.dialogues = gameData.dialogues
 			this._dialoguePointer = -1
 
 			for (let i = 0; i < this.dialogues.length; i++) {
@@ -163,23 +163,29 @@ export class Game {
 		const responseData = responsePayload.data
 		if ('aiResponse' in responseData) {
 			// success
+
+			// build user dialogue data first
 			this.dialogues!.push({
-				id: "-", // placeholder ID since not important
-				speaker: SPEAKER_ID.User,
+				dialogueID: "-", // placeholder ID since not important
+				by: SPEAKER_ID.User,
+
+				attemptsCount: 1,
 				successful: true,
 
 				createdTimestamp: new Date().toISOString(),
 				gameID: this.gameID!,
 
 				attempts: [{
-					id: "-", // placeholder ID since not important
+					attemptID: "-", // placeholder ID since not important
 
+					dialogueId: "-",
 					attemptNumber: 1,
+
 					content: responseText,
 					successful: true,
 
 					timeTaken: timeTakenS, // convert it to seconds
-					dialogueId: "-"
+					timestamp: new Date().toISOString()
 				}]
 			})
 
@@ -188,22 +194,25 @@ export class Game {
 
 			// push system response
 			this.dialogues!.push({
-				id: responseData.aiResponse.dialogueID, // placeholder ID since not important
-				speaker: SPEAKER_ID.System,
+				dialogueID: responseData.aiResponse.dialogueID, // placeholder ID since not important
+				by: SPEAKER_ID.System,
+
+				attemptsCount: 1,
 				successful: true,
 
 				createdTimestamp: responseData.aiResponse.createdAt,
 				gameID: this.gameID!,
 
 				attempts: [{
-					id: responseData.aiResponse.attemptID, // placeholder ID since not important
+					attemptID: responseData.aiResponse.attemptID, // placeholder ID since not important
 
+					dialogueId: responseData.aiResponse.dialogueID,
 					attemptNumber: responseData.aiResponse.attemptNumber,
 					content: responseData.aiResponse.content,
 					successful: true,
 
 					timeTaken: responseData.aiResponse.timeTaken, // convert it to seconds
-					dialogueId: responseData.aiResponse.dialogueID
+					timestamp: new Date().toISOString()
 				}]
 			})
 		}

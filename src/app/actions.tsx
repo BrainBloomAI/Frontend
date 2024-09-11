@@ -152,7 +152,6 @@ export async function logout() {
 	if (loggedOut) {
 		console.log("downgrading")
 		await downgradeSession()
-		redirect("/login")
 
 		return {
 			success: true
@@ -333,9 +332,15 @@ export async function getGameData(gameID: string) {
 
 	console.log("\n\n\n\n\tFETCHING:", gameID)
 	let errorMessage: string|undefined;
-	const gameData: GameData|undefined = await session.bridge.get("/game", {
-		gameID: gameID, includeScenario: true, includeDialogues: true, includeEvaluation: true
-	} as AxiosRequestConfig & { gameID: string, includeScenario?: true, includeDialogues?: true, includeEvaluation?: true }).then((r: AxiosResponse & { data: GameData }) => {
+	let params = {
+		gameID,
+		includeScenario: true,
+		includeDialogues: true,
+		includeEvaluation: true
+	}
+	const gameData: GameData|undefined = await session.bridge.get("/game",
+		{ params } as AxiosRequestConfig & { params: { gameID: string, includeScenario?: true, includeDialogues?: true, includeEvaluation?: true }}
+	).then((r: AxiosResponse & { data: GameData }) => {
 		if (r.status === 200) {
 			return r.data
 		}

@@ -1,5 +1,5 @@
 import { z } from "zod"
- 
+
 export const LoginFormSchema = z.object({
 	name: z
 		.string()
@@ -68,8 +68,8 @@ export type ScenarioEntry = {
 }
 
 export enum SPEAKER_ID {
-	System, // scenario computer reponse
-	User // PWIDs
+	System = "system", // scenario computer reponse
+	User = "user" // PWIDs
 }
 
 export enum RESPONSE_STATUS {
@@ -79,25 +79,39 @@ export enum RESPONSE_STATUS {
 }
 
 export type AttemptEntry = {
-	id: string,
+	attemptID: string,
 
+	dialogueId: string,
 	attemptNumber: number,
+
 	content: string,
-	successful: boolean
+	successful: boolean,
 
 	timeTaken: number,
-	dialogueId: string
+	timestamp: string // ISO format
 }
 
 export type DialogueEntry = {
-	id: string,
-	speaker: SPEAKER_ID,
+	dialogueID: string,
+	by: SPEAKER_ID,
+
+	attemptsCount: number,
 	successful: boolean,
 
 	createdTimestamp: string, // iso format
 	gameID: string,
 
 	attempts: Array<AttemptEntry>
+}
+
+export type ScenarioData = {
+	scenarioID: string,
+	name: string, // retail
+	backgroundImage: string, // baseURL/public/img/${backgroundImage}
+	description: string,
+	modelRole: string, // customer
+	userRole: string, // retail worker
+	created: string // ISO format
 }
 
 export type GameData = {
@@ -107,15 +121,7 @@ export type GameData = {
 	userID: string,
 	scenarioID: string,
 	dialogues: Array<DialogueEntry>,
-	scenarioData: {
-        scenarioID: string,
-        name: string, // retail
-        backgroundImage: string, // baseURL/public/img/${backgroundImage}
-        description: string,
-        modelRole: string, // customer
-        userRole: string, // retail worker
-        created: string // ISO format
-	}
+	scenario: ScenarioData
 }
 
 export type GameDescriptionData = {

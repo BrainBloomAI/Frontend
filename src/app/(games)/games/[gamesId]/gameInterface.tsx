@@ -140,121 +140,126 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 
 	useEffect(() => {
 		let SRW = new SpeechRecognitionWrapper()
-
-		gameController.dialogueNextEvent = (dialogueEntry) => {
-			if (!speakerIndicatorRef.current) {
-				return
-			}
-
-			// set speaker indicator
-			console.log("<A>", dialogueEntry)
-			const isSystem = dialogueEntry.speaker === SPEAKER_ID.System
-			const isUser = dialogueEntry.speaker === SPEAKER_ID.User
-			speakerIndicatorRef.current.classList.toggle("a", isSystem)
-			speakerIndicatorRef.current.classList.toggle("b", isUser) // third state is when neither a nor b is present (middle)
-
-			return
-		}
-
-		let prevAttemptContent = NBSP
-		let prevAttemptDirection: "left"|"center"|"right" = "center"
-		gameController.dialogueAttemptNextEvent = async (dialogueEntry, attemptEntry) => {
-			if (!micIndicatorRef.current || !speakerIndicatorRef.current) {
-				return
-			}
-
-			if (dialogueEntry.speaker === SPEAKER_ID.System) {
-				await typeText(attemptEntry.content, speakerIndicatorRef, setTypingContents)
-				
-				// scroll dialogue into view simultaneously
-				shiftScroll(
-					shiftTextParentRef,
-					{
-						ref: prevTextRef,
-						contents: prevAttemptContent,
-						direction: prevAttemptDirection
-					},
-					{
-						ref: currTextRef,
-						contents: attemptEntry.content,
-						direction: "left" // speaker is system
-					})
-				prevAttemptContent = attemptEntry.content // set state
-
-				// show user speaker to prompt
-				speakerIndicatorRef.current.style.display = "none"
-				micIndicatorRef.current.style.display = "flex"
-
-				// start recording session
-				let start: number = +new Date();
-				SRW.onStart = (recordingSession) => {
-					recordingSession.updateContent = (updatedContents) => {
-						console.log(`"${updatedContents}"`)
-						setTypingContents(updatedContents.length === 0 ? NBSP : updatedContents)
-					}
-
-					recordingSession.end = (finalContents) => {
-						// end of recording
-						setTypingContents(finalContents)
-
-						// end SRW session
-						SRW.clearRecordingSession()
-
-						// return control back to game controller
-						gameController.respond(finalContents, +new Date() -start)
-					}
-
-					recordingSession.start = () => {
-						// update contents
-						setTypingContents(NBSP) // &nbsp; unicode
-						console.log("set", NBSP)
-
-						// hide away micIndicator
-						if (!micIndicatorRef.current || !speakerIndicatorRef.current) {
-							return
-						}
-						speakerIndicatorRef.current.style.display = "flex"
-						micIndicatorRef.current.style.display = "none"
-
-						// show speaking indicator
-						speakerIndicatorRef.current.classList.toggle("a", false)
-						speakerIndicatorRef.current.classList.toggle("b", true) // user is speaking
-					}
+		const _inner = async() => {
+			gameController.dialogueNextEvent = (dialogueEntry) => {
+				if (!speakerIndicatorRef.current) {
+					return
 				}
 
-				SRW.start() // start speech recognition
-			} else if (dialogueEntry.speaker === SPEAKER_ID.User) {
-				// show pulsating text
-				shiftScroll(
-					shiftTextParentRef,
-					{
-						ref: prevTextRef,
-						contents: prevAttemptContent,
-						direction: prevAttemptDirection
-					},
-					{
-						ref: currTextRef,
-						contents: attemptEntry.content,
-						direction: "right" // speaker is user
-					})
+				// set speaker indicator
+				console.log("<A>", dialogueEntry)
+				const isSystem = dialogueEntry.by === SPEAKER_ID.System
+				const isUser = dialogueEntry.by === SPEAKER_ID.User
+				speakerIndicatorRef.current.classList.toggle("a", isSystem)
+				speakerIndicatorRef.current.classList.toggle("b", isUser) // third state is when neither a nor b is present (middle)
 
-				// switch speaker
-				speakerIndicatorRef.current.classList.toggle("a", true) // system is speaking
-				speakerIndicatorRef.current.classList.toggle("b", false)
-				await typeText(".....", speakerIndicatorRef, setTypingContents)
+				return
 			}
-		}
 
-		if (!gameController.ready) {
-			// not yet registered
-			gameController.register(gamesId) // only register after attaching all the event listeners
+			let prevAttemptContent = NBSP
+			let prevAttemptDirection: "left"|"center"|"right" = "center"
+			gameController.dialogueAttemptNextEvent = async (dialogueEntry, attemptEntry) => {
+				if (!micIndicatorRef.current || !speakerIndicatorRef.current) {
+					return
+				}
+
+				console.log("<B>", dialogueEntry, attemptEntry)
+				if (dialogueEntry.by === SPEAKER_ID.System) {
+					await typeText(attemptEntry.content, speakerIndicatorRef, setTypingContents)
+					
+					// scroll dialogue into view simultaneously
+					shiftScroll(
+						shiftTextParentRef,
+						{
+							ref: prevTextRef,
+							contents: prevAttemptContent,
+							direction: prevAttemptDirection
+						},
+						{
+							ref: currTextRef,
+							contents: attemptEntry.content,
+							direction: "left" // speaker is system
+						})
+					prevAttemptContent = attemptEntry.content // set state
+
+					// show user speaker to prompt
+					speakerIndicatorRef.current.style.display = "none"
+					micIndicatorRef.current.style.display = "flex"
+
+					// start recording session
+					let start: number = +new Date();
+					SRW.onStart = (recordingSession) => {
+						recordingSession.updateContent = (updatedContents) => {
+							console.log(`"${updatedContents}"`)
+							setTypingContents(updatedContents.length === 0 ? NBSP : updatedContents)
+						}
+
+						recordingSession.end = (finalContents) => {
+							// end of recording
+							setTypingContents(finalContents)
+
+							// end SRW session
+							SRW.clearRecordingSession()
+
+							// return control back to game controller
+							gameController.respond(finalContents, +new Date() -start)
+						}
+
+						recordingSession.start = () => {
+							// update contents
+							setTypingContents(NBSP) // &nbsp; unicode
+							console.log("set", NBSP)
+
+							// hide away micIndicator
+							if (!micIndicatorRef.current || !speakerIndicatorRef.current) {
+								return
+							}
+							speakerIndicatorRef.current.style.display = "flex"
+							micIndicatorRef.current.style.display = "none"
+
+							// show speaking indicator
+							speakerIndicatorRef.current.classList.toggle("a", false)
+							speakerIndicatorRef.current.classList.toggle("b", true) // user is speaking
+						}
+					}
+
+					SRW.start() // start speech recognition
+				} else if (dialogueEntry.by === SPEAKER_ID.User) {
+					// show pulsating text
+					shiftScroll(
+						shiftTextParentRef,
+						{
+							ref: prevTextRef,
+							contents: prevAttemptContent,
+							direction: prevAttemptDirection
+						},
+						{
+							ref: currTextRef,
+							contents: attemptEntry.content,
+							direction: "right" // speaker is user
+						})
+
+					// switch speaker
+					speakerIndicatorRef.current.classList.toggle("a", true) // system is speaking
+					speakerIndicatorRef.current.classList.toggle("b", false)
+					await typeText(".....", speakerIndicatorRef, setTypingContents)
+				}
+			}
+
 			if (!gameController.ready) {
-				// failed to load game object -> unable to render game, send back home page
-				return redirect("/games?_referred-by=2")
-			}
+				// not yet registered
+				await gameController.register(gamesId) // only register after attaching all the event listeners
+				if (!gameController.ready) {
+					// failed to load game object -> unable to render game, send back home page
+					return redirect("/games?_referred-by=2")
+				}
 
-			setGameData(gameController.data!)
+				setGameData(gameController.data!)
+			}
 		}
+
+		// invoke async function
+		_inner()
 
 		return () => {
 			// cleanup
