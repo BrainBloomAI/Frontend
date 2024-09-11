@@ -117,6 +117,7 @@ export type ScenarioData = {
 export type GameData = {
 	gameID: string,
 	startedTimestamp: string, // ISO format
+	pointsEarned?: number, // TODO: variable presence?
 	status: "ongoing" | "completed" | "failed", // Enum for status
 	userID: string,
 	scenarioID: string,

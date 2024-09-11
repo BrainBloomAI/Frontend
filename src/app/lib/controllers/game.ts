@@ -32,12 +32,15 @@ export class Game {
 	gameID?: string
 	dialogues?: Array<DialogueEntry>
 	data?: GameDescriptionData
+	pointsEarned?: number
 
 	_dialoguePointer: number // index of current dialogue
 
 	dialogueNextEvent?: (dialogueEntry: DialogueEntry, hasNextDialogue: boolean) => void|Promise<void> // fired whenever new dialogue appears
 	dialogueAttemptNextEvent?: (dialogueEntry: DialogueEntry, attemptEntry: AttemptEntry, hasNextDialogue: boolean) => void|Promise<void> // fired whenever new attempt appears (first attempt fires immediately right after dialogue gets created)
-	dialogueAttemptFailedEvent?: (DialogueEntry: DialogueEntry, attemptEntry: AttemptEntry, suggestedResponse: string) => void|Promise<void> // fired when user made an attempt but not accurate
+	dialogueAttemptFailedEvent?: (DialogueEntry: DialogueEntry, attemptEntry: AttemptEntry, suggestedResponse: string) => void|Promise<void> // fired when user made an attempt but not accurate (never fired on playthroughs)
+
+	gameEndEvent?: (addedScore: number) => void // fired when game ended (will be fired for playthroughs too)
 
 	constructor() {
 		// states and references
@@ -72,6 +75,10 @@ export class Game {
 
 			this.dialogues = gameData.dialogues
 			this._dialoguePointer = -1
+
+			if (this.ready) {
+				this.pointsEarned = gameData.pointsEarned
+			}
 		} else {
 			// failed
 			this.ready = false
@@ -94,8 +101,19 @@ export class Game {
 			throw new GameError(`Trying to invoke controller.start, however this._dialoguePointer exceeds this.dialogues.length, this._dialoguePointer = ${this._dialoguePointer}`)
 		}
 
+		const showEndScreen = this.gameEnded
 		for (let i = 0; i < this.dialogues!.length; i++) {
 			await this._loadNext()
+		}
+
+		if (showEndScreen && this.gameEndEvent) {
+			if (this.pointsEarned) {
+				this.gameEndEvent(this.pointsEarned)
+			} else {
+				// not provided somehow
+				console.warn("WARNING: .pointsEarned NOT PROVIDED in GET /game return payload")
+				this.gameEndEvent(-2)
+			}
 		}
 	}
 
@@ -124,10 +142,11 @@ export class Game {
 		}
 		if (this.dialogueAttemptNextEvent) {
 			if (this.gameEnded) {
-				// is a playthrough
-				// TODO: only pass in dialogueData.attempts[dialogueData.attemptsCount -1] -> successful attempt
+				// is a playthrough, only pass in successful attempt
+				await this.dialogueAttemptNextEvent(dialogueData, dialogueData.attempts[dialogueData.attemptsCount -1], hasNextDialogue)
+			} else {
+				await this.dialogueAttemptNextEvent(dialogueData, dialogueData.attempts[0], hasNextDialogue)
 			}
-			await this.dialogueAttemptNextEvent(dialogueData, dialogueData.attempts[0], hasNextDialogue)
 		}
 	}
 
@@ -149,7 +168,7 @@ export class Game {
 			throw new GameNotReadyError(`Trying to invoke controller.respond, however this.ready = ${this.ready}`)
 		}
 		if (this.gameEnded === true) {
-			throw new GameEndedError(`Trying to invoke controller.reespond, however this.gameEnded = ${this.gameEnded}`)
+			throw new GameEndedError(`Trying to invoke controller.respond, however this.gameEnded = ${this.gameEnded}`)
 		}
 
 		let timeTakenS = timeTaken /1000 // convert it to seconds
@@ -247,6 +266,20 @@ export class Game {
 
 					attempts: [attemptData]
 				}, attemptData, responseData.suggestedAIResponse)
+			}
+		} else {
+			// game ended
+			this.gameEnded = true
+
+
+			// fire event
+			if (this.gameEndEvent) {
+				if ("pointsEarned" in responseData) {
+					this.gameEndEvent(responseData.pointsEarned)
+				} else {
+					// no AI eval, use -1 as placeholder
+					this.gameEndEvent(-1)
+				}
 			}
 		}
 

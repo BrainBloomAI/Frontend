@@ -387,6 +387,10 @@ type NewDialogueBackendResponse = {
 		createdAt: string // ISO format
 	}
 } | {
+	message: string,
+	pointsEarned: number
+	feedback: string
+} | {
 	message: string
 }
 

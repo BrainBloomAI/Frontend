@@ -58,8 +58,6 @@ const typeText = async (text: string, containerRef: RefObject<HTMLDivElement>, t
 
 			typingContentState(text.slice(0, charPointer++))
 			if (charPointer >= text.length) {
-				containerRef.current.children[0].classList.toggle("animate-pulse", false)
-
 				pendingTyping = false
 				if (!pendingSpeaking) {
 					// speaking is done too
@@ -68,6 +66,9 @@ const typeText = async (text: string, containerRef: RefObject<HTMLDivElement>, t
 				return clearTimeout(intervalId)
 			}
 		}, 50)
+	}).then(() => {
+		// stop pulsating
+		containerRef.current?.children[0].classList.toggle("animate-pulse", false)
 	})
 }
 
@@ -161,6 +162,8 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 	const speakerIndicatorRef = useRef<HTMLDivElement>(null)
 	const typingContainerRef = useRef<HTMLParagraphElement>(null)
 
+	const [gameEndedState, setGameEndedState] = useState(false)
+	const [gameEarnedPoints, setGameEarnedPoints] = useState(0)
 	const [gameData, setGameData] = useState<GameDescriptionData>()
 
 	const router = useRouter()
@@ -305,11 +308,13 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 					// switch speaker
 					speakerIndicatorRef.current.classList.toggle("a", true) // system is speaking
 					speakerIndicatorRef.current.classList.toggle("b", false)
-					await typeText(".....", speakerIndicatorRef, setTypingContents)
+					await typeText("..........", speakerIndicatorRef, setTypingContents)
 				}
 			}
 
 			gameController.dialogueAttemptFailedEvent = async (dialogueEntry, attemptEntry, suggestedResponse) => {
+				// will never be called on a playthrough
+
 				// set response indicator
 				setResponseIndidcatorState(1) // bad
 				await promiseDelay(1000)
@@ -317,6 +322,13 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 				// let user respond again
 				setResponseIndidcatorState(0)
 				startRecording()
+			}
+
+			gameController.gameEndEvent = async (pointsEarned) => {
+				await promiseDelay(1000)
+
+				setGameEarnedPoints(pointsEarned)
+				setGameEndedState(true)
 			}
 
 			if (!gameController.ready) {
@@ -346,7 +358,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 	}, [speakerIndicatorRef, typingContainerRef])
 
 	return (
-		<main className={`${GameTheme.background} text-white flex flex-col h-svh`}>
+		<main className={`relative ${GameTheme.background} text-white flex flex-col h-svh`}>
 			<div className="flex flex-col items-center p-3">
 				<h1 className="font-bold text-xl">{gameData?.title}</h1>
 				<p>[{gameData?.subtitle}]</p>
@@ -373,6 +385,13 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 					<div id="speaker-indicator" className="animate-pulse basis-1 h-full shrink-0 grow-0 group-[.a]:bg-party-a group-[.b]:bg-party-b"></div>
 					<p ref={typingContainerRef} className={`group-[.b]:text-right ${activeDialogueInFocus} transition-colors`} style={{color: GameTheme.responseIndicator[responseIndicatorState]}}>{typingContents}</p>
 				</div>
+			</div>
+			<div className={`flex flex-col items-center absolute top-full left-0 w-svw h-svh transition-transform duration-1000 ${GameTheme.background}`}
+				style={{
+					transform: `translateY(${gameEndedState ? -100 : 0}%)`
+				}}
+			>
+				<p className="font-bold text-2xl p-8">{gameEarnedPoints}</p>
 			</div>
 		</main>
 	)
