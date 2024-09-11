@@ -104,8 +104,13 @@ export class SpeechRecognitionWrapper {
 
 	stop() {
 		if (this.state === SRWState.Running) {
-			this.sr.stop() // stop the object
+			this.sr.stop() // stop SpeechRecognition object
+
+			// set state
 			this.state = SRWState.Stop
+
+			// clear session
+			this.currentRecordingSession = {}
 		}
 	}
 }

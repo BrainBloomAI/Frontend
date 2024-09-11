@@ -291,6 +291,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 
 		return () => {
 			// cleanup
+			SRW.stop()
 			SRW.onStart = undefined // unset
 		}
 	}, [speakerIndicatorRef, typingContainerRef])
