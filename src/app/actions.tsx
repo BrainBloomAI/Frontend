@@ -286,7 +286,7 @@ export async function createNewGame(scenarioID: string) {
 	}
 
 	let errorMessage: string|undefined;
-	const gameID = await session.bridge.post("/game/new", {
+	const gameID: string|undefined = await session.bridge.post("/game/new", {
 		scenarioID
 	}).then((r: AxiosResponse & { data: { gameID: string }}) => {
 		if (r.status === 200) {
@@ -304,9 +304,9 @@ export async function createNewGame(scenarioID: string) {
 
 	console.log("\n\n.createNewGame() returned gameID:", gameID)
 	if (gameID) {
-		redirect(`/games/${gameID}`)
 		return {
-			success: true
+			success: true,
+			gameID
 		}
 	} else {
 		console.log("FAILED", errorMessage)
