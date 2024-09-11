@@ -14,9 +14,15 @@ type RecordingSession = {
 	end?: (finalCOntents: string) => void // speech end
 }
 
+enum SRWState {
+	Running,
+	Stop
+}
 
 export class SpeechRecognitionWrapper {
 	sr: SpeechRecognition
+
+	state: SRWState
 
 	currentRecordingSession: RecordingSession
 	onStart?: (recordingSession: RecordingSession) => void
@@ -31,12 +37,14 @@ export class SpeechRecognitionWrapper {
 		this.sr.continuous = true
 		this.sr.interimResults = true
 
+		// set state
+		this.state = SRWState.Stop
+
 		// memory object
 		this.currentRecordingSession = {}
 
 		// attach events
 		this.sr.addEventListener("result", e => {
-			console.log("e", e)
 			let resultList = e.results
 			let singleResult = resultList[0] // at position 0
 			let optimalResult = singleResult[0] // first alternative
@@ -44,6 +52,7 @@ export class SpeechRecognitionWrapper {
 			if (singleResult.isFinal) {
 				// final one
 				if (this.currentRecordingSession.end) {
+					this.stop()
 					this.currentRecordingSession.end(optimalResult.transcript)
 				}
 			} else {
@@ -66,6 +75,7 @@ export class SpeechRecognitionWrapper {
 		this.sr.addEventListener("speechend", e => {
 			if (this.currentRecordingSession.end) {
 				// has a recording session going on
+				console.log("\n\n\nSPEECHEND")
 				this.stop()
 			}
 		})
@@ -80,9 +90,10 @@ export class SpeechRecognitionWrapper {
 
 	start() {
 		this.sr.start()
+		this.state = SRWState.Running
 		console.log("started")
 		if (this.onStart) {
-			this.currentRecordingSession = {}
+			this.currentRecordingSession = {} // clear session
 			this.onStart(this.currentRecordingSession) // pass by memory
 		}
 	}
@@ -92,8 +103,9 @@ export class SpeechRecognitionWrapper {
 	}
 
 	stop() {
-		if (this.currentRecordingSession.end) {
+		if (this.state === SRWState.Running) {
 			this.sr.stop() // stop the object
+			this.state = SRWState.Stop
 		}
 	}
 }

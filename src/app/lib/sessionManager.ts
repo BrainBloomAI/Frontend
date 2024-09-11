@@ -37,7 +37,7 @@ function createBridge(authToken?: string, _retrievedAt?: number, _authTokenValid
 	 */
 	const inst = axios.create({
 		baseURL: BRIDGE_CONFIG.baseURL,
-		timeout: 1000,
+		timeout: 5000,
 		headers: {
 			[BRIDGE_CONFIG.authTokenHeaderKeyName]: authToken
 		}

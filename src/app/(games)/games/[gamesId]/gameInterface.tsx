@@ -7,7 +7,7 @@ import { Microphone } from "@phosphor-icons/react"
 import { StaticImageData } from "next/image"
 import { Game } from "@/app/lib/controllers/game"
 import { GameDescriptionData, GameData, SPEAKER_ID } from "@/app/lib/definitions"
-import { redirect } from "next/navigation"
+import { redirect, useRouter } from "next/navigation"
 import { Dispatch, RefObject, SetStateAction, useEffect, useReducer, useRef, useState } from "react"
 import { Console } from "console"
 import { SpeechRecognitionWrapper } from "@/app/lib/synthesiser"
@@ -138,10 +138,21 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 
 	const [gameData, setGameData] = useState<GameDescriptionData>()
 
+	const router = useRouter()
+
+	const promiseDelay = (delay: number) => {
+		/**
+		 * returns a Promise that resolves after waiting delay (ms) duration
+		 */
+		return new Promise(res => {
+			setTimeout(res, delay)
+		})
+	}
+
 	useEffect(() => {
 		let SRW = new SpeechRecognitionWrapper()
 		const _inner = async() => {
-			gameController.dialogueNextEvent = (dialogueEntry) => {
+			gameController.dialogueNextEvent = async (dialogueEntry, _) => {
 				if (!speakerIndicatorRef.current) {
 					return
 				}
@@ -158,7 +169,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 
 			let prevAttemptContent = NBSP
 			let prevAttemptDirection: "left"|"center"|"right" = "center"
-			gameController.dialogueAttemptNextEvent = async (dialogueEntry, attemptEntry) => {
+			gameController.dialogueAttemptNextEvent = async (dialogueEntry, attemptEntry, hasNextDialogue) => {
 				if (!micIndicatorRef.current || !speakerIndicatorRef.current) {
 					return
 				}
@@ -182,50 +193,63 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 						})
 					prevAttemptContent = attemptEntry.content // set state
 
-					// show user speaker to prompt
-					speakerIndicatorRef.current.style.display = "none"
-					micIndicatorRef.current.style.display = "flex"
+					if (hasNextDialogue) {
+						// is a playthrough
+						return
+					} else {
+						// wait for user response
 
-					// start recording session
-					let start: number = +new Date();
-					SRW.onStart = (recordingSession) => {
-						recordingSession.updateContent = (updatedContents) => {
-							console.log(`"${updatedContents}"`)
-							setTypingContents(updatedContents.length === 0 ? NBSP : updatedContents)
-						}
+						// show user speaker to prompt
+						speakerIndicatorRef.current.style.display = "none"
+						micIndicatorRef.current.style.display = "flex"
 
-						recordingSession.end = (finalContents) => {
-							// end of recording
-							setTypingContents(finalContents)
-
-							// end SRW session
-							SRW.clearRecordingSession()
-
-							// return control back to game controller
-							gameController.respond(finalContents, +new Date() -start)
-						}
-
-						recordingSession.start = () => {
-							// update contents
-							setTypingContents(NBSP) // &nbsp; unicode
-							console.log("set", NBSP)
-
-							// hide away micIndicator
-							if (!micIndicatorRef.current || !speakerIndicatorRef.current) {
-								return
+						// start recording session
+						let start: number = +new Date();
+						SRW.onStart = (recordingSession) => {
+							recordingSession.updateContent = (updatedContents) => {
+								setTypingContents(updatedContents.length === 0 ? NBSP : updatedContents)
 							}
-							speakerIndicatorRef.current.style.display = "flex"
-							micIndicatorRef.current.style.display = "none"
 
-							// show speaking indicator
-							speakerIndicatorRef.current.classList.toggle("a", false)
-							speakerIndicatorRef.current.classList.toggle("b", true) // user is speaking
+							recordingSession.end = (finalContents) => {
+								// end of recording
+								setTypingContents(finalContents)
+
+								// end SRW session
+								SRW.clearRecordingSession()
+
+								// return control back to game controller
+								gameController.respond(finalContents, +new Date() -start)
+							}
+
+							recordingSession.start = () => {
+								// update contents
+								setTypingContents(NBSP) // &nbsp; unicode
+								console.log("set", NBSP)
+
+								// hide away micIndicator
+								if (!micIndicatorRef.current || !speakerIndicatorRef.current) {
+									return
+								}
+								speakerIndicatorRef.current.style.display = "flex"
+								micIndicatorRef.current.style.display = "none"
+
+								// show speaking indicator
+								speakerIndicatorRef.current.classList.toggle("a", false)
+								speakerIndicatorRef.current.classList.toggle("b", true) // user is speaking
+							}
 						}
+
+						SRW.start() // start speech recognition
 					}
 
-					SRW.start() // start speech recognition
 				} else if (dialogueEntry.by === SPEAKER_ID.User) {
 					// show pulsating text
+					if (hasNextDialogue) {
+						// show typing effect since is a playthrough
+						await typeText(attemptEntry.content, speakerIndicatorRef, setTypingContents)
+						await promiseDelay(1000)
+					}
+
 					shiftScroll(
 						shiftTextParentRef,
 						{
@@ -251,10 +275,14 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 				await gameController.register(gamesId) // only register after attaching all the event listeners
 				if (!gameController.ready) {
 					// failed to load game object -> unable to render game, send back home page
-					return redirect("/games?_referred-by=2")
+					return router.push("/games?_referred-by=2")
 				}
 
+				// set game data
 				setGameData(gameController.data!)
+
+				// start game flow
+				gameController.start()
 			}
 		}
 

@@ -35,8 +35,8 @@ export class Game {
 
 	_dialoguePointer: number // index of current dialogue
 
-	dialogueNextEvent?: (dialogueEntry: DialogueEntry) => void|Promise<void> // fired whenever new dialogue appears
-	dialogueAttemptNextEvent?: (dialogueEntry: DialogueEntry, attemptEntry: AttemptEntry) => void|Promise<void> // fired whenever new attempt appears (first attempt fires immediately right after dialogue gets created)
+	dialogueNextEvent?: (dialogueEntry: DialogueEntry, hasNextDialogue: boolean) => void|Promise<void> // fired whenever new dialogue appears
+	dialogueAttemptNextEvent?: (dialogueEntry: DialogueEntry, attemptEntry: AttemptEntry, hasNextDialogue: boolean) => void|Promise<void> // fired whenever new attempt appears (first attempt fires immediately right after dialogue gets created)
 
 	constructor() {
 		// states and references
@@ -71,10 +71,6 @@ export class Game {
 
 			this.dialogues = gameData.dialogues
 			this._dialoguePointer = -1
-
-			for (let i = 0; i < this.dialogues.length; i++) {
-				this._loadNext()
-			}
 		} else {
 			// failed
 			this.ready = false
@@ -83,18 +79,23 @@ export class Game {
 		return this // for chaining
 	}
 
-	create() {
+	async start() {
 		/**
-		 * invokes POST /game/create
-		 * 
-		 * sets this.gameID along with initialisation
-		 * 
-		 * will set this.ready to True if successful, otherwise remains False (default value)
+		 * starts iterating through conversation chain once registered
 		 */
-		this.gameID = "GAMEID"
-		this.dialogues = []
+		if (!this.ready) {
+			// not ready
+			throw new GameNotReadyError(`Trying to invoke controller.start, however this.ready = ${this.ready}`)
+		}
+		if (this._dialoguePointer >= this.dialogues!.length -1) {
+			// out of range
+			// throw error
+			throw new GameError(`Trying to invoke controller.start, however this._dialoguePointer exceeds this.dialogues.length, this._dialoguePointer = ${this._dialoguePointer}`)
+		}
 
-		this.ready = true
+		for (let i = 0; i < this.dialogues!.length; i++) {
+			await this._loadNext()
+		}
 	}
 
 	_loadDialogues(playthrough: boolean = true) {
@@ -105,13 +106,13 @@ export class Game {
 		 */
 	}
 
-	_loadNext() {
+	async _loadNext() {
 		/**
 		 * increments ._dialoguePointer and triggers sequences for next event
 		 * 
 		 * 1. dispatch event attached to .dialogueNextEvent
 		 */
-		if (this.ready == null) {
+		if (!this.ready) {
 			// not ready
 			throw new GameNotReadyError(`Trying to invoke controller._loadNext, however this.ready = ${this.ready}`)
 		}
@@ -123,12 +124,13 @@ export class Game {
 
 		this._dialoguePointer++
 		const dialogueData = this.dialogues![this._dialoguePointer] // guaranteed to exist since this.ready is true
+		const hasNextDialogue = this.gameEnded || this._dialoguePointer <= this.dialogues!.length -2
 
 		if (this.dialogueNextEvent) {
-			this.dialogueNextEvent(dialogueData)
+			await this.dialogueNextEvent(dialogueData, hasNextDialogue)
 		}
 		if (this.dialogueAttemptNextEvent) {
-			this.dialogueAttemptNextEvent(dialogueData, dialogueData.attempts[0])
+			await this.dialogueAttemptNextEvent(dialogueData, dialogueData.attempts[0], hasNextDialogue)
 		}
 	}
 
@@ -145,7 +147,7 @@ export class Game {
 		 * 
 		 * returns RESPONSE_STATUS
 		 */
-		if (this.ready === false) {
+		if (!this.ready) {
 			// controller is not ready
 			throw new GameNotReadyError(`Trying to invoke controller.respond, however this.ready = ${this.ready}`)
 		}
@@ -215,6 +217,9 @@ export class Game {
 					timestamp: new Date().toISOString()
 				}]
 			})
+
+			// fire event
+			this._loadNext()
 		}
 
 		return 0
