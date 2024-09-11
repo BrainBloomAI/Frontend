@@ -32,13 +32,13 @@ export async function login(state: FormState, formData: FormData) {
 	const authToken = await session.bridge.post("/identity/login", {
 		username: name,
 		password
-	}).then(r => {
+	}).then((r: AxiosResponse) => {
 		if (r.status === 200) {
 			return r.data.slice(-10)
 		}
 
 		throw new Error(`FAILED: Uncaught response code, ${r.status}`)
-	}).catch(err => {
+	}).catch((err: any) => {
 		if (err.status === 404 || err.status === 401) {
 			errorMessage = err.response.data
 		}
@@ -47,7 +47,7 @@ export async function login(state: FormState, formData: FormData) {
 
 	if (authToken) {
 		// managed to obtain authToken
-		await upgradeSession(authToken)
+		await upgradeSession(authToken) // wait for session to upgrade before redirecting user to a privilege-required page
 
 		// redirect user
 		return redirect("/games")
@@ -84,13 +84,13 @@ export async function signup(state: FormState, formData: FormData) {
 		email,
 		password,
 		role: "standard"
-	}).then(r => {
+	}).then((r: AxiosResponse) => {
 		if (r.status === 200) {
 			return r.data.slice(-10)
 		}
 
 		throw new Error(`FAILED: Uncaught response code, ${r.status}`)
-	}).catch(err => { // TODO: FIX
+	}).catch((err: any) => { // TODO: FIX
 		if (err.status === 400) {
 			errorMessage = err.response.data
 		}
@@ -99,7 +99,7 @@ export async function signup(state: FormState, formData: FormData) {
 
 	if (authToken) {
 		// managed to obtain authToken
-		upgradeSession(authToken)
+		await upgradeSession(authToken) // wait for session to upgrade before redirecting user to a privilege-required page
 
 		// redirect user
 		return redirect("/games")
