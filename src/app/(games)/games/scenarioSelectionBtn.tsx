@@ -39,7 +39,7 @@ function ScenarioSelectionPanel({ scenarioList }: { scenarioList: Array<Scenario
 									setErrorMessageState(returnPayload.message) // show message
 								}
 							} else {
-								router.push(`/games/returnPayload.gameID!`) // .success is true, implies .gameID exists
+								router.push(`/games/${returnPayload.gameID}`) // .success is true, implies .gameID exists
 							}
 						}
 					}

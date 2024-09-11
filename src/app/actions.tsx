@@ -406,7 +406,7 @@ export async function newDialogue(content: string, timeTaken: number): Promise<{
 
 	let errorMessage: string|undefined;
 	const response: NewDialogueBackendResponse = await session.bridge.post("/game/newDialogue", {
-		content, timeTaken, debugSuccess: true
+		content, timeTaken
 	}).then((r: AxiosResponse & { data: GameData }) => {
 		if (r.status === 200) {
 			return r.data

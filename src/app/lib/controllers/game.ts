@@ -37,6 +37,7 @@ export class Game {
 
 	dialogueNextEvent?: (dialogueEntry: DialogueEntry, hasNextDialogue: boolean) => void|Promise<void> // fired whenever new dialogue appears
 	dialogueAttemptNextEvent?: (dialogueEntry: DialogueEntry, attemptEntry: AttemptEntry, hasNextDialogue: boolean) => void|Promise<void> // fired whenever new attempt appears (first attempt fires immediately right after dialogue gets created)
+	dialogueAttemptFailedEvent?: (DialogueEntry: DialogueEntry, attemptEntry: AttemptEntry, suggestedResponse: string) => void|Promise<void> // fired when user made an attempt but not accurate
 
 	constructor() {
 		// states and references
@@ -98,14 +99,6 @@ export class Game {
 		}
 	}
 
-	_loadDialogues(playthrough: boolean = true) {
-		/**
-		 * playthrough: boolean, if true will sequence the dialogues in an animated fashion, otherwise jumps to the most recent dialogue
-		 * 
-		 * loads the sequeunce of dialogues
-		 */
-	}
-
 	async _loadNext() {
 		/**
 		 * increments ._dialoguePointer and triggers sequences for next event
@@ -130,6 +123,10 @@ export class Game {
 			await this.dialogueNextEvent(dialogueData, hasNextDialogue)
 		}
 		if (this.dialogueAttemptNextEvent) {
+			if (this.gameEnded) {
+				// is a playthrough
+				// TODO: only pass in dialogueData.attempts[dialogueData.attemptsCount -1] -> successful attempt
+			}
 			await this.dialogueAttemptNextEvent(dialogueData, dialogueData.attempts[0], hasNextDialogue)
 		}
 	}
@@ -163,7 +160,7 @@ export class Game {
 		}
 
 		const responseData = responsePayload.data
-		if ('aiResponse' in responseData) {
+		if ("aiResponse" in responseData) {
 			// success
 
 			// build user dialogue data first
@@ -220,6 +217,37 @@ export class Game {
 
 			// fire event
 			this._loadNext()
+		} else if ("suggestedAIResponse" in responseData) {
+			// user response can be better
+
+			// build attempt
+			const attemptData = {
+				attemptID: "-", // placeholder ID since not important
+
+				dialogueId: "-",
+				attemptNumber: 1,
+
+				content: responseText,
+				successful: true,
+
+				timeTaken: timeTakenS, // convert it to seconds
+				timestamp: new Date().toISOString()
+			}
+
+			if (this.dialogueAttemptFailedEvent) {
+				this.dialogueAttemptFailedEvent({
+					dialogueID: "-", // placeholder ID since not important
+					by: SPEAKER_ID.User,
+
+					attemptsCount: 1,
+					successful: true,
+
+					createdTimestamp: new Date().toISOString(),
+					gameID: this.gameID!,
+
+					attempts: [attemptData]
+				}, attemptData, responseData.suggestedAIResponse)
+			}
 		}
 
 		return 0

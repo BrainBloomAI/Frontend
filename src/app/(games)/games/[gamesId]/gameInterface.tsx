@@ -10,7 +10,7 @@ import { GameDescriptionData, GameData, SPEAKER_ID } from "@/app/lib/definitions
 import { redirect, useRouter } from "next/navigation"
 import { Dispatch, RefObject, SetStateAction, useEffect, useReducer, useRef, useState } from "react"
 import { Console } from "console"
-import { SpeechRecognitionWrapper } from "@/app/lib/synthesiser"
+import { SpeechRecognitionWrapper } from "@/app/lib/recognition"
 import { updateSession } from "@/app/lib/sessionManager"
 import { GameTheme } from "@/app/(games)/games/config"
 
@@ -24,12 +24,31 @@ const typeText = async (text: string, containerRef: RefObject<HTMLDivElement>, t
 		return
 	}
 
+	// speech synthesis
+	const synth = window.speechSynthesis;
+
 	// clear contents
 	typingContentState("")
 	containerRef.current.children[0].classList.toggle("animate-pulse", true)
 
-	// resolve promise when typing actions are done
+	// resolve promise when typing actions AND speech synthesis speaking are done
 	return new Promise((resolve: (value?: undefined) => void) => {
+		let pendingTyping = true
+		let pendingSpeaking = true
+
+		// speak
+		let utterance = new SpeechSynthesisUtterance(text);
+		synth.speak(utterance)
+
+		utterance.addEventListener("end", e => {
+			pendingSpeaking = false
+			if (!pendingTyping) {
+				// typing is done too
+				resolve()
+			}
+		})
+
+		// type
 		let charPointer = 0
 		let intervalId: NodeJS.Timeout;
 		intervalId = setInterval(() => {
@@ -41,7 +60,11 @@ const typeText = async (text: string, containerRef: RefObject<HTMLDivElement>, t
 			if (charPointer >= text.length) {
 				containerRef.current.children[0].classList.toggle("animate-pulse", false)
 
-				resolve()
+				pendingTyping = false
+				if (!pendingSpeaking) {
+					// speaking is done too
+					resolve()
+				}
 				return clearTimeout(intervalId)
 			}
 		}, 50)
@@ -133,6 +156,8 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 	const micIndicatorRef = useRef<HTMLDivElement>(null)
 
 	const [typingContents, setTypingContents] = useState("")
+	const [responseIndicatorState, setResponseIndidcatorState] = useState(0)
+
 	const speakerIndicatorRef = useRef<HTMLDivElement>(null)
 	const typingContainerRef = useRef<HTMLParagraphElement>(null)
 
@@ -150,7 +175,56 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 	}
 
 	useEffect(() => {
+		// speech recognition
 		let SRW = new SpeechRecognitionWrapper()
+
+		// game sound effects
+		let bing = new Audio("/sounds/bing.mp3")
+
+		const startRecording = async () => {
+			// show user speaker to prompt
+			speakerIndicatorRef.current!.style.display = "none"
+			micIndicatorRef.current!.style.display = "flex"
+
+			// start recording session
+			let start: number = +new Date();
+			SRW.onStart = (recordingSession) => {
+				recordingSession.updateContent = (updatedContents) => {
+					setTypingContents(updatedContents.length === 0 ? NBSP : updatedContents)
+				}
+
+				recordingSession.end = (finalContents) => {
+					// end of recording
+					setTypingContents(finalContents)
+
+					// end SRW session
+					SRW.clearRecordingSession()
+
+					// return control back to game controller
+					gameController.respond(finalContents, +new Date() -start)
+				}
+
+				recordingSession.start = () => {
+					// update contents
+					setTypingContents(NBSP) // &nbsp; unicode
+					console.log("set", NBSP)
+
+					// hide away micIndicator
+					if (!micIndicatorRef.current || !speakerIndicatorRef.current) {
+						return
+					}
+					speakerIndicatorRef.current.style.display = "flex"
+					micIndicatorRef.current.style.display = "none"
+
+					// show speaking indicator
+					speakerIndicatorRef.current.classList.toggle("a", false)
+					speakerIndicatorRef.current.classList.toggle("b", true) // user is speaking
+				}
+			}
+
+			SRW.start() // start speech recognition
+		}
+
 		const _inner = async() => {
 			gameController.dialogueNextEvent = async (dialogueEntry, _) => {
 				if (!speakerIndicatorRef.current) {
@@ -175,6 +249,10 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 				}
 
 				console.log("<B>", dialogueEntry, attemptEntry)
+
+				// set response indicator
+				setResponseIndidcatorState(0) // good
+
 				if (dialogueEntry.by === SPEAKER_ID.System) {
 					await typeText(attemptEntry.content, speakerIndicatorRef, setTypingContents)
 					
@@ -197,57 +275,18 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 						// is a playthrough
 						return
 					} else {
-						// wait for user response
-
-						// show user speaker to prompt
-						speakerIndicatorRef.current.style.display = "none"
-						micIndicatorRef.current.style.display = "flex"
-
-						// start recording session
-						let start: number = +new Date();
-						SRW.onStart = (recordingSession) => {
-							recordingSession.updateContent = (updatedContents) => {
-								setTypingContents(updatedContents.length === 0 ? NBSP : updatedContents)
-							}
-
-							recordingSession.end = (finalContents) => {
-								// end of recording
-								setTypingContents(finalContents)
-
-								// end SRW session
-								SRW.clearRecordingSession()
-
-								// return control back to game controller
-								gameController.respond(finalContents, +new Date() -start)
-							}
-
-							recordingSession.start = () => {
-								// update contents
-								setTypingContents(NBSP) // &nbsp; unicode
-								console.log("set", NBSP)
-
-								// hide away micIndicator
-								if (!micIndicatorRef.current || !speakerIndicatorRef.current) {
-									return
-								}
-								speakerIndicatorRef.current.style.display = "flex"
-								micIndicatorRef.current.style.display = "none"
-
-								// show speaking indicator
-								speakerIndicatorRef.current.classList.toggle("a", false)
-								speakerIndicatorRef.current.classList.toggle("b", true) // user is speaking
-							}
-						}
-
-						SRW.start() // start speech recognition
+						// get user response
+						startRecording()
 					}
-
 				} else if (dialogueEntry.by === SPEAKER_ID.User) {
 					// show pulsating text
 					if (hasNextDialogue) {
 						// show typing effect since is a playthrough
 						await typeText(attemptEntry.content, speakerIndicatorRef, setTypingContents)
 						await promiseDelay(1000)
+					} else {
+						// give bing sound effect
+						bing.play()
 					}
 
 					shiftScroll(
@@ -268,6 +307,16 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 					speakerIndicatorRef.current.classList.toggle("b", false)
 					await typeText(".....", speakerIndicatorRef, setTypingContents)
 				}
+			}
+
+			gameController.dialogueAttemptFailedEvent = async (dialogueEntry, attemptEntry, suggestedResponse) => {
+				// set response indicator
+				setResponseIndidcatorState(1) // bad
+				await promiseDelay(1000)
+
+				// let user respond again
+				setResponseIndidcatorState(0)
+				startRecording()
 			}
 
 			if (!gameController.ready) {
@@ -322,7 +371,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 				</div>
 				<div ref={speakerIndicatorRef} id="speaking-indicator" className="group flex flex-row items-center gap-3 py-4 a justify-start [&.b]:flex-row-reverse">
 					<div id="speaker-indicator" className="animate-pulse basis-1 h-full shrink-0 grow-0 group-[.a]:bg-party-a group-[.b]:bg-party-b"></div>
-					<p ref={typingContainerRef} className={`group-[.b]:text-right ${activeDialogueInFocus}`}>{typingContents}</p>
+					<p ref={typingContainerRef} className={`group-[.b]:text-right ${activeDialogueInFocus} transition-colors`} style={{color: GameTheme.responseIndicator[responseIndicatorState]}}>{typingContents}</p>
 				</div>
 			</div>
 		</main>

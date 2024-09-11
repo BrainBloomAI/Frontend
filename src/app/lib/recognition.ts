@@ -1,5 +1,5 @@
 /**
- * Synthesis text to speech for game
+ * Recognition wrapper that calls on the native SpeechRecognition web API for speech to text for game
  * 
  * Provides a wrapper around the native SpeechRecognition object
  */
@@ -52,8 +52,8 @@ export class SpeechRecognitionWrapper {
 			if (singleResult.isFinal) {
 				// final one
 				if (this.currentRecordingSession.end) {
+					this.currentRecordingSession.end(optimalResult.transcript) // .stop() will cleanup session, finish session job first
 					this.stop()
-					this.currentRecordingSession.end(optimalResult.transcript)
 				}
 			} else {
 				if (this.currentRecordingSession.updateContent) {
@@ -75,7 +75,6 @@ export class SpeechRecognitionWrapper {
 		this.sr.addEventListener("speechend", e => {
 			if (this.currentRecordingSession.end) {
 				// has a recording session going on
-				console.log("\n\n\nSPEECHEND")
 				this.stop()
 			}
 		})
