@@ -224,16 +224,4 @@ export class Game {
 
 		return 0
 	}
-
-	getResponse(): string {
-		/**
-		 * get computer player response to user's response
-		 * invoked right after this.respond
-		 * 
-		 * returns string, the next prompt
-		 */
-
-		// the computer response is built immediately into this.dialogues by this.respond()
-		return this.dialogues![this.dialogues!.length -1][0]
-	}
 }
