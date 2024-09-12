@@ -48,6 +48,7 @@ export async function login(state: FormState, formData: FormData) {
 	if (authToken) {
 		// managed to obtain authToken
 		await upgradeSession(authToken) // wait for session to upgrade before redirecting user to a privilege-required page
+		console.log("UPGRADED SESSION", session, await getSession())
 
 		// redirect user
 		return redirect("/games")
@@ -173,6 +174,7 @@ export async function isAuthenticated() {
 
 export async function getScenarioList() {
 	let session = await getSession()
+	console.log("\n\n\n\n.getScenarioList()", session)
 	if (!session || session.authenticated === false) {
 		// not authenticated
 		return
@@ -180,39 +182,39 @@ export async function getScenarioList() {
 
 	const scenarioList: Array<ScenarioEntry>|undefined = await session.bridge.get("/game/scenarios").then(async r => {
 		if (r.status === 200) {
-			const updatedEntries = await Promise.all(
-				r.data.map(async (entry: ScenarioEntry) => {
-					// convert backgroundImage to blob
-					console.log("fetching", `${session.bridge.defaults.baseURL}/public/img/${entry.backgroundImage}`)
-					entry.backgroundImage = await fetch(`${session.bridge.defaults.baseURL}/public/img/${entry.backgroundImage}`)
-						.then(r => {
-							console.log("r.status", r.status)
-							if (r.status === 200) {
-								return r.blob()
-							}
+			// const updatedEntries = await Promise.all(
+			// 	r.data.map(async (entry: ScenarioEntry) => {
+			// 		// convert backgroundImage to blob
+			// 		console.log("fetching", `${session.bridge.defaults.baseURL}/public/img/${entry.backgroundImage}`)
+			// 		entry.backgroundImage = await fetch(`${session.bridge.defaults.baseURL}/public/img/${entry.backgroundImage}`)
+			// 			.then(r => {
+			// 				console.log("r.status", r.status)
+			// 				if (r.status === 200) {
+			// 					return r.blob()
+			// 				}
 
-							return Promise.reject(r.status)
-						}).then(blob => {
-							return new Promise((res: (dataURL: string) => void, rej) => {
-								const reader = new FileReader()
-								reader.onload = _ => {
-									res(reader.result as string)
-								}
-								reader.onerror = err => {
-									rej(reader.error)
-								}
+			// 				return Promise.reject(r.status)
+			// 			}).then(blob => {
+			// 				return new Promise((res: (dataURL: string) => void, rej) => {
+			// 					const reader = new FileReader()
+			// 					reader.onload = _ => {
+			// 						res(reader.result as string)
+			// 					}
+			// 					reader.onerror = err => {
+			// 						rej(reader.error)
+			// 					}
 
-								reader.readAsDataURL(blob)
-							})
-						}).catch(err => {
-							console.log("rejected")
-							return "https://cdn-icons-png.flaticon.com/512/3593/3593455.png" // default placeholder
-						})
+			// 					reader.readAsDataURL(blob)
+			// 				})
+			// 			}).catch(err => {
+			// 				console.log("rejected")
+			// 				return "https://cdn-icons-png.flaticon.com/512/3593/3593455.png" // default placeholder
+			// 			})
 
-					console.log(`updated: ${entry.backgroundImage}`)
-					return entry
-				})
-			)
+			// 		console.log(`updated: ${entry.backgroundImage}`)
+			// 		return entry
+			// 	})
+			// )
 
 			console.log("returned")
 			return r.data
@@ -224,6 +226,7 @@ export async function getScenarioList() {
 		console.warn("getScenarioList() failed to obtain a response, will silently fail", err)
 	})
 
+	console.log("service end", await getSession())
 	return scenarioList
 }
 
@@ -277,6 +280,7 @@ export async function createNewGame(scenarioID: string) {
 	 * creates a new game with the supplied scenarioID
 	 */
 	let session = await getSession()
+	console.log("\n\n\nSESSION", session)
 	if (!session || session.authenticated === false) {
 		// not authenticated
 		return {

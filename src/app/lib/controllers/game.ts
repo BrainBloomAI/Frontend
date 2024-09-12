@@ -141,7 +141,7 @@ export class Game {
 			await this.dialogueNextEvent(dialogueData, hasNextDialogue)
 		}
 		if (this.dialogueAttemptNextEvent) {
-			if (this.gameEnded) {
+			if (hasNextDialogue) {
 				// is a playthrough, only pass in successful attempt
 				await this.dialogueAttemptNextEvent(dialogueData, dialogueData.attempts[dialogueData.attemptsCount -1], hasNextDialogue)
 			} else {

@@ -34,12 +34,21 @@ const typeText = async (text: string, containerRef: RefObject<HTMLDivElement>, t
 	// resolve promise when typing actions AND speech synthesis speaking are done
 	return new Promise((resolve: (value?: undefined) => void) => {
 		let pendingTyping = true
-		let pendingSpeaking = true
+		let pendingSpeaking = false // only set to true if utterance managed to speak
 
 		// speak
+		if (synth.speaking) {
+			synth.cancel()
+		}
+		console.log(synth.speaking)
 		let utterance = new SpeechSynthesisUtterance(text);
-		synth.speak(utterance)
 
+		utterance.addEventListener("error", e => {
+			console.log("ERROR", e)
+		})
+		utterance.addEventListener("start", e => {
+			pendingSpeaking = true
+		})
 		utterance.addEventListener("end", e => {
 			pendingSpeaking = false
 			if (!pendingTyping) {
@@ -47,6 +56,7 @@ const typeText = async (text: string, containerRef: RefObject<HTMLDivElement>, t
 				resolve()
 			}
 		})
+		synth.speak(utterance)
 
 		// type
 		let charPointer = 0
@@ -149,13 +159,14 @@ const shiftScroll = (
 
 const scorePoints = (points: number, setState: Dispatch<SetStateAction<string>>) => {
 	/**
-	 * show score point over a duration of 5 seconds
+	 * show score point over a duration of 2 seconds
 	 */
+	const duration = 2 *1000 // 2 seconds
 
 	let start = +new Date() // ms
-	setTimeout(() => {
+	setInterval(() => {
 		let durElapsed = +new Date() -start
-		let lerp = Math.min(durElapsed /5, 1)
+		let lerp = Math.min(durElapsed /duration, 1)
 
 		let pointEarn = Math.floor(lerp *points)
 		setState(`+${pointEarn}`)
@@ -213,6 +224,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 
 				recordingSession.end = (finalContents) => {
 					// end of recording
+					console.log("ENDED")
 					setTypingContents(finalContents)
 
 					// end SRW session
@@ -373,13 +385,13 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 	}, [speakerIndicatorRef, typingContainerRef])
 
 	return (
-		<main className={`relative ${GameTheme.background} text-white flex flex-col h-svh`}>
+		<main className={`relative ${GameTheme.background} text-white flex flex-col h-svh overflow-y-clip`}>
 			<div className="flex flex-col items-center p-3">
 				<h1 className="font-bold text-xl">{gameData?.title}</h1>
 				<p>[{gameData?.subtitle}]</p>
 			</div>
 			<div id="world-mapper" className="grow w-full min-h-0">
-				<img src={gameData?.backgroundImage} className="w-full h-full object-cover" />
+				<img src={`http://localhost:8000/cdn/${gameData?.backgroundImage}`} className="w-full h-full object-cover" />
 			</div>
 			<div className="grow flex flex-col p-3 gap-5">
 				<div ref={shiftTextParentRef} id="text-bounds" className="relative overflow-y-clip grow">
@@ -401,12 +413,14 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 					<p ref={typingContainerRef} className={`group-[.b]:text-right ${activeDialogueInFocus} transition-colors`} style={{color: GameTheme.responseIndicator[responseIndicatorState]}}>{typingContents}</p>
 				</div>
 			</div>
-			<div className={`flex flex-col items-center absolute top-full left-0 w-svw h-svh transition-transform duration-1000 ${GameTheme.background}`}
+			<div className={`flex flex-col items-center absolute top-full left-0 w-svw h-svh transition-transform duration-1000 p-8 ${GameTheme.background}`}
 				style={{
 					transform: `translateY(${gameEndedState ? -100 : 0}%)`
 				}}
 			>
-				<p className="font-bold text-2xl p-8">{gameEarnedPoints}</p>
+				<p className="font-bold text-4xl">Game Complete!</p>
+				<p className="font-bold text-2xl py-4 mt-16">Points Earned!</p>
+				<p className="font-bold text-8xl p-8">{gameEarnedPoints}</p>
 			</div>
 		</main>
 	)

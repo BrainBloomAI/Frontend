@@ -120,7 +120,7 @@ export async function setCookie(session: string, expires: Date) {
 	 */
 	cookies().set(SESSION_COOKIE_NAME, session, {
 		httpOnly: true,
-		secure: true,
+		secure: false,
 		expires: expires,
 		sameSite: "lax",
 		path: "/"
@@ -143,9 +143,11 @@ export async function createSession(): Promise<ExtSessionPayload> {
 
 export async function getSession(): Promise<ExtSessionPayload|undefined> {
 	const cookie = getCookie()
+	console.log("COOKIE", cookie)
 	if (cookie == null) {
 		return
 	}
+
 
 	const sessionData = await decrypt(cookie) as ExtSessionPayload
 	if (sessionData == null) {

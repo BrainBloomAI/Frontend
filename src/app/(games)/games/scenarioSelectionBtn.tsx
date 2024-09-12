@@ -5,6 +5,7 @@ import { createNewGame } from "@/app/actions"
 import { createContext, Dispatch, SetStateAction, useContext, useState } from "react";
 import Alerts from "@/app/lib/ui/alerts";
 import { useRouter } from "next/navigation";
+import { getSession } from "@/app/lib/sessionManager";
 
 const WindowScenario = createContext<{errorMessageState?: string, setErrorMessageState?: Dispatch<SetStateAction<string|undefined>>}>({})
 

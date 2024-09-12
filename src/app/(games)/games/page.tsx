@@ -1,8 +1,7 @@
 "use server"
 
 import { GameTheme } from "@/app/(games)/games/config"
-import { createNewGame, getScenarioList } from "@/app/actions"
-import { ScenarioEntry } from "@/app/lib/definitions";
+import { getScenarioList } from "@/app/actions"
 import Alerts from "@/app/lib/ui/alerts"
 import ScenarioSelectionWindow from "./scenarioSelectionBtn";
 
