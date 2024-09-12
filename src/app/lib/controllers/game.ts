@@ -1,4 +1,4 @@
-"use server"
+"use client"
 
 import { getGameData, newDialogue } from "@/app/actions"
 import { SPEAKER_ID, RESPONSE_STATUS, AttemptEntry, DialogueEntry, GameData, GameDescriptionData } from "@/app/lib/definitions"
@@ -32,11 +32,15 @@ export class Game {
 	gameID?: string
 	dialogues?: Array<DialogueEntry>
 	data?: GameDescriptionData
+	pointsEarned?: number
 
 	_dialoguePointer: number // index of current dialogue
 
-	dialogueNextEvent?: (dialogueEntry: DialogueEntry) => void|Promise<void> // fired whenever new dialogue appears
-	dialogueAttemptNextEvent?: (dialogueEntry: DialogueEntry, attemptEntry: AttemptEntry) => void|Promise<void> // fired whenever new attempt appears (first attempt fires immediately right after dialogue gets created)
+	dialogueNextEvent?: (dialogueEntry: DialogueEntry, hasNextDialogue: boolean) => void|Promise<void> // fired whenever new dialogue appears
+	dialogueAttemptNextEvent?: (dialogueEntry: DialogueEntry, attemptEntry: AttemptEntry, hasNextDialogue: boolean) => void|Promise<void> // fired whenever new attempt appears (first attempt fires immediately right after dialogue gets created)
+	dialogueAttemptFailedEvent?: (DialogueEntry: DialogueEntry, attemptEntry: AttemptEntry, suggestedResponse: string) => void|Promise<void> // fired when user made an attempt but not accurate (never fired on playthroughs)
+
+	gameEndEvent?: (addedScore: number) => void // fired when game ended (will be fired for playthroughs too)
 
 	constructor() {
 		// states and references
@@ -54,24 +58,26 @@ export class Game {
 		this.gameID = gameID
 
 		const gameDataPayload = await getGameData(gameID)
-		if (gameDataPayload.success) {
+		console.log("\n\n\n\nPAYLOAD", gameDataPayload)
+		if (gameDataPayload.success === true) {
 			const gameData = gameDataPayload.data!
 
 			// set data
 			this.data = {
-				title: gameData.scenarioData.name,
-				backgroundImage: gameData.scenarioData.backgroundImage
+				title: gameData.scenario.name,
+				subtitle: gameData.scenario.userRole,
+				backgroundImage: gameData.scenario.backgroundImage
 			}
 
 			// set states
 			this.ready = true
 			this.gameEnded = gameData.status !== "ongoing"
 
-			this.dialogues = gameData.dialogues // HERE
+			this.dialogues = gameData.dialogues
 			this._dialoguePointer = -1
 
-			for (let i = 0; i < this.dialogues.length; i++) {
-				this._loadNext()
+			if (this.ready) {
+				this.pointsEarned = gameData.pointsEarned
 			}
 		} else {
 			// failed
@@ -81,35 +87,43 @@ export class Game {
 		return this // for chaining
 	}
 
-	create() {
+	async start() {
 		/**
-		 * invokes POST /game/create
-		 * 
-		 * sets this.gameID along with initialisation
-		 * 
-		 * will set this.ready to True if successful, otherwise remains False (default value)
+		 * starts iterating through conversation chain once registered
 		 */
-		this.gameID = "GAMEID"
-		this.dialogues = []
+		if (!this.ready) {
+			// not ready
+			throw new GameNotReadyError(`Trying to invoke controller.start, however this.ready = ${this.ready}`)
+		}
+		if (this._dialoguePointer >= this.dialogues!.length -1) {
+			// out of range
+			// throw error
+			throw new GameError(`Trying to invoke controller.start, however this._dialoguePointer exceeds this.dialogues.length, this._dialoguePointer = ${this._dialoguePointer}`)
+		}
 
-		this.ready = true
+		const showEndScreen = this.gameEnded
+		for (let i = 0; i < this.dialogues!.length; i++) {
+			await this._loadNext()
+		}
+
+		if (showEndScreen && this.gameEndEvent) {
+			if (this.pointsEarned) {
+				this.gameEndEvent(this.pointsEarned)
+			} else {
+				// not provided somehow
+				console.warn("WARNING: .pointsEarned NOT PROVIDED in GET /game return payload")
+				this.gameEndEvent(-2)
+			}
+		}
 	}
 
-	_loadDialogues(playthrough: boolean = true) {
-		/**
-		 * playthrough: boolean, if true will sequence the dialogues in an animated fashion, otherwise jumps to the most recent dialogue
-		 * 
-		 * loads the sequeunce of dialogues
-		 */
-	}
-
-	_loadNext() {
+	async _loadNext() {
 		/**
 		 * increments ._dialoguePointer and triggers sequences for next event
 		 * 
 		 * 1. dispatch event attached to .dialogueNextEvent
 		 */
-		if (this.ready == null) {
+		if (!this.ready) {
 			// not ready
 			throw new GameNotReadyError(`Trying to invoke controller._loadNext, however this.ready = ${this.ready}`)
 		}
@@ -121,12 +135,18 @@ export class Game {
 
 		this._dialoguePointer++
 		const dialogueData = this.dialogues![this._dialoguePointer] // guaranteed to exist since this.ready is true
+		const hasNextDialogue = this.gameEnded || this._dialoguePointer <= this.dialogues!.length -2
 
 		if (this.dialogueNextEvent) {
-			this.dialogueNextEvent(dialogueData)
+			await this.dialogueNextEvent(dialogueData, hasNextDialogue)
 		}
 		if (this.dialogueAttemptNextEvent) {
-			this.dialogueAttemptNextEvent(dialogueData, dialogueData.attempts[0])
+			if (this.gameEnded) {
+				// is a playthrough, only pass in successful attempt
+				await this.dialogueAttemptNextEvent(dialogueData, dialogueData.attempts[dialogueData.attemptsCount -1], hasNextDialogue)
+			} else {
+				await this.dialogueAttemptNextEvent(dialogueData, dialogueData.attempts[0], hasNextDialogue)
+			}
 		}
 	}
 
@@ -143,12 +163,12 @@ export class Game {
 		 * 
 		 * returns RESPONSE_STATUS
 		 */
-		if (this.ready === false) {
+		if (!this.ready) {
 			// controller is not ready
 			throw new GameNotReadyError(`Trying to invoke controller.respond, however this.ready = ${this.ready}`)
 		}
 		if (this.gameEnded === true) {
-			throw new GameEndedError(`Trying to invoke controller.reespond, however this.gameEnded = ${this.gameEnded}`)
+			throw new GameEndedError(`Trying to invoke controller.respond, however this.gameEnded = ${this.gameEnded}`)
 		}
 
 		let timeTakenS = timeTaken /1000 // convert it to seconds
@@ -159,25 +179,31 @@ export class Game {
 		}
 
 		const responseData = responsePayload.data
-		if ('aiResponse' in responseData) {
+		if ("aiResponse" in responseData) {
 			// success
+
+			// build user dialogue data first
 			this.dialogues!.push({
-				id: "-", // placeholder ID since not important
-				speaker: SPEAKER_ID.User,
+				dialogueID: "-", // placeholder ID since not important
+				by: SPEAKER_ID.User,
+
+				attemptsCount: 1,
 				successful: true,
 
 				createdTimestamp: new Date().toISOString(),
 				gameID: this.gameID!,
 
 				attempts: [{
-					id: "-", // placeholder ID since not important
+					attemptID: "-", // placeholder ID since not important
 
+					dialogueId: "-",
 					attemptNumber: 1,
+
 					content: responseText,
 					successful: true,
 
 					timeTaken: timeTakenS, // convert it to seconds
-					dialogueId: "-"
+					timestamp: new Date().toISOString()
 				}]
 			})
 
@@ -185,20 +211,78 @@ export class Game {
 			this._loadNext()
 
 			// push system response
+			this.dialogues!.push({
+				dialogueID: responseData.aiResponse.dialogueID, // placeholder ID since not important
+				by: SPEAKER_ID.System,
+
+				attemptsCount: 1,
+				successful: true,
+
+				createdTimestamp: responseData.aiResponse.createdAt,
+				gameID: this.gameID!,
+
+				attempts: [{
+					attemptID: responseData.aiResponse.attemptID, // placeholder ID since not important
+
+					dialogueId: responseData.aiResponse.dialogueID,
+					attemptNumber: responseData.aiResponse.attemptNumber,
+					content: responseData.aiResponse.content,
+					successful: true,
+
+					timeTaken: responseData.aiResponse.timeTaken, // convert it to seconds
+					timestamp: new Date().toISOString()
+				}]
+			})
+
+			// fire event
+			this._loadNext()
+		} else if ("suggestedAIResponse" in responseData) {
+			// user response can be better
+
+			// build attempt
+			const attemptData = {
+				attemptID: "-", // placeholder ID since not important
+
+				dialogueId: "-",
+				attemptNumber: 1,
+
+				content: responseText,
+				successful: true,
+
+				timeTaken: timeTakenS, // convert it to seconds
+				timestamp: new Date().toISOString()
+			}
+
+			if (this.dialogueAttemptFailedEvent) {
+				this.dialogueAttemptFailedEvent({
+					dialogueID: "-", // placeholder ID since not important
+					by: SPEAKER_ID.User,
+
+					attemptsCount: 1,
+					successful: true,
+
+					createdTimestamp: new Date().toISOString(),
+					gameID: this.gameID!,
+
+					attempts: [attemptData]
+				}, attemptData, responseData.suggestedAIResponse)
+			}
+		} else {
+			// game ended
+			this.gameEnded = true
+
+
+			// fire event
+			if (this.gameEndEvent) {
+				if ("pointsEarned" in responseData) {
+					this.gameEndEvent(responseData.pointsEarned)
+				} else {
+					// no AI eval, use -1 as placeholder
+					this.gameEndEvent(-1)
+				}
+			}
 		}
 
 		return 0
-	}
-
-	getResponse(): string {
-		/**
-		 * get computer player response to user's response
-		 * invoked right after this.respond
-		 * 
-		 * returns string, the next prompt
-		 */
-
-		// the computer response is built immediately into this.dialogues by this.respond()
-		return this.dialogues![this.dialogues!.length -1][0]
 	}
 }

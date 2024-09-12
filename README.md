@@ -6,3 +6,4 @@
 
 # Resources
 - Icons sourced from [Phosphor Icons](https://phosphoricons.com/)
+- Bing sound effect from [orangefreesounds](https://orangefreesounds.com/mario-coin-sound/)

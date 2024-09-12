@@ -5,14 +5,14 @@ import asset_01 from "@/public/games/asset_01.png"
 import { Microphone } from "@phosphor-icons/react"
 
 import { StaticImageData } from "next/image"
-import { Game, GameData, SPEAKER_ID } from "@/app/lib/controllers/game"
-import { redirect } from "next/navigation"
+import { Game } from "@/app/lib/controllers/game"
+import { GameDescriptionData, GameData, SPEAKER_ID } from "@/app/lib/definitions"
+import { redirect, useRouter } from "next/navigation"
 import { Dispatch, RefObject, SetStateAction, useEffect, useReducer, useRef, useState } from "react"
 import { Console } from "console"
-import { SpeechRecognitionWrapper } from "@/app/lib/synthesiser"
+import { SpeechRecognitionWrapper } from "@/app/lib/recognition"
 import { updateSession } from "@/app/lib/sessionManager"
 import { GameTheme } from "@/app/(games)/games/config"
-import { GameDescriptionData } from "@/app/lib/definitions"
 
 const activeDialogueInFocus = "font-bold text-2xl text-white"
 const activeDialogueOutOfFocus = "font-bold text-xl text-slate-200"
@@ -24,12 +24,31 @@ const typeText = async (text: string, containerRef: RefObject<HTMLDivElement>, t
 		return
 	}
 
+	// speech synthesis
+	const synth = window.speechSynthesis;
+
 	// clear contents
 	typingContentState("")
 	containerRef.current.children[0].classList.toggle("animate-pulse", true)
 
-	// resolve promise when typing actions are done
+	// resolve promise when typing actions AND speech synthesis speaking are done
 	return new Promise((resolve: (value?: undefined) => void) => {
+		let pendingTyping = true
+		let pendingSpeaking = true
+
+		// speak
+		let utterance = new SpeechSynthesisUtterance(text);
+		synth.speak(utterance)
+
+		utterance.addEventListener("end", e => {
+			pendingSpeaking = false
+			if (!pendingTyping) {
+				// typing is done too
+				resolve()
+			}
+		})
+
+		// type
 		let charPointer = 0
 		let intervalId: NodeJS.Timeout;
 		intervalId = setInterval(() => {
@@ -39,12 +58,17 @@ const typeText = async (text: string, containerRef: RefObject<HTMLDivElement>, t
 
 			typingContentState(text.slice(0, charPointer++))
 			if (charPointer >= text.length) {
-				containerRef.current.children[0].classList.toggle("animate-pulse", false)
-
-				resolve()
+				pendingTyping = false
+				if (!pendingSpeaking) {
+					// speaking is done too
+					resolve()
+				}
 				return clearTimeout(intervalId)
 			}
 		}, 50)
+	}).then(() => {
+		// stop pulsating
+		containerRef.current?.children[0].classList.toggle("animate-pulse", false)
 	})
 }
 
@@ -123,6 +147,21 @@ const shiftScroll = (
 	}, 1000) // after transition is finished
 }
 
+const scorePoints = (points: number, setState: Dispatch<SetStateAction<string>>) => {
+	/**
+	 * show score point over a duration of 5 seconds
+	 */
+
+	let start = +new Date() // ms
+	setTimeout(() => {
+		let durElapsed = +new Date() -start
+		let lerp = Math.min(durElapsed /5, 1)
+
+		let pointEarn = Math.floor(lerp *points)
+		setState(`+${pointEarn}`)
+	}, 100)
+}
+
 export default function GameInterface({ gamesId }: { gamesId: string }) {
 	const gameController = new Game()
 
@@ -133,143 +172,214 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 	const micIndicatorRef = useRef<HTMLDivElement>(null)
 
 	const [typingContents, setTypingContents] = useState("")
+	const [responseIndicatorState, setResponseIndidcatorState] = useState(0)
+
 	const speakerIndicatorRef = useRef<HTMLDivElement>(null)
 	const typingContainerRef = useRef<HTMLParagraphElement>(null)
 
+	const [gameEndedState, setGameEndedState] = useState(false)
+	const [gameEarnedPoints, setGameEarnedPoints] = useState("0")
 	const [gameData, setGameData] = useState<GameDescriptionData>()
 
+	const router = useRouter()
+
+	const promiseDelay = (delay: number) => {
+		/**
+		 * returns a Promise that resolves after waiting delay (ms) duration
+		 */
+		return new Promise(res => {
+			setTimeout(res, delay)
+		})
+	}
+
 	useEffect(() => {
+		// speech recognition
 		let SRW = new SpeechRecognitionWrapper()
 
-		gameController.dialogueNextEvent = (dialogueEntry) => {
-			if (!speakerIndicatorRef.current) {
-				return
-			}
+		// game sound effects
+		let bing = new Audio("/sounds/bing.mp3")
 
-			// set speaker indicator
-			console.log("<A>", dialogueEntry)
-			const isSystem = dialogueEntry.speaker === SPEAKER_ID.System
-			const isUser = dialogueEntry.speaker === SPEAKER_ID.User
-			speakerIndicatorRef.current.classList.toggle("a", isSystem)
-			speakerIndicatorRef.current.classList.toggle("b", isUser) // third state is when neither a nor b is present (middle)
+		const startRecording = async () => {
+			// show user speaker to prompt
+			speakerIndicatorRef.current!.style.display = "none"
+			micIndicatorRef.current!.style.display = "flex"
 
-			return
-		}
-
-		let prevAttemptContent = NBSP
-		let prevAttemptDirection: "left"|"center"|"right" = "center"
-		gameController.dialogueAttemptNextEvent = async (dialogueEntry, attemptEntry) => {
-			if (!micIndicatorRef.current || !speakerIndicatorRef.current) {
-				return
-			}
-
-			if (dialogueEntry.speaker === SPEAKER_ID.System) {
-				await typeText(attemptEntry.content, speakerIndicatorRef, setTypingContents)
-				
-				// scroll dialogue into view simultaneously
-				shiftScroll(
-					shiftTextParentRef,
-					{
-						ref: prevTextRef,
-						contents: prevAttemptContent,
-						direction: prevAttemptDirection
-					},
-					{
-						ref: currTextRef,
-						contents: attemptEntry.content,
-						direction: "left" // speaker is system
-					})
-				prevAttemptContent = attemptEntry.content // set state
-
-				// show user speaker to prompt
-				speakerIndicatorRef.current.style.display = "none"
-				micIndicatorRef.current.style.display = "flex"
-
-				// start recording session
-				let start: number = +new Date();
-				SRW.onStart = (recordingSession) => {
-					recordingSession.updateContent = (updatedContents) => {
-						console.log(`"${updatedContents}"`)
-						setTypingContents(updatedContents.length === 0 ? NBSP : updatedContents)
-					}
-
-					recordingSession.end = (finalContents) => {
-						// end of recording
-						setTypingContents(finalContents)
-
-						// end SRW session
-						SRW.clearRecordingSession()
-
-						// return control back to game controller
-						gameController.respond(finalContents, +new Date() -start)
-					}
-
-					recordingSession.start = () => {
-						// update contents
-						setTypingContents(NBSP) // &nbsp; unicode
-						console.log("set", NBSP)
-
-						// hide away micIndicator
-						if (!micIndicatorRef.current || !speakerIndicatorRef.current) {
-							return
-						}
-						speakerIndicatorRef.current.style.display = "flex"
-						micIndicatorRef.current.style.display = "none"
-
-						// show speaking indicator
-						speakerIndicatorRef.current.classList.toggle("a", false)
-						speakerIndicatorRef.current.classList.toggle("b", true) // user is speaking
-					}
+			// start recording session
+			let start: number = +new Date();
+			SRW.onStart = (recordingSession) => {
+				recordingSession.updateContent = (updatedContents) => {
+					setTypingContents(updatedContents.length === 0 ? NBSP : updatedContents)
 				}
 
-				SRW.start() // start speech recognition
-			} else if (dialogueEntry.speaker === SPEAKER_ID.User) {
-				// show pulsating text
-				shiftScroll(
-					shiftTextParentRef,
-					{
-						ref: prevTextRef,
-						contents: prevAttemptContent,
-						direction: prevAttemptDirection
-					},
-					{
-						ref: currTextRef,
-						contents: attemptEntry.content,
-						direction: "right" // speaker is user
-					})
+				recordingSession.end = (finalContents) => {
+					// end of recording
+					setTypingContents(finalContents)
 
-				// switch speaker
-				speakerIndicatorRef.current.classList.toggle("a", true) // system is speaking
-				speakerIndicatorRef.current.classList.toggle("b", false)
-				await typeText(".....", speakerIndicatorRef, setTypingContents)
+					// end SRW session
+					SRW.clearRecordingSession()
+
+					// return control back to game controller
+					gameController.respond(finalContents, +new Date() -start)
+				}
+
+				recordingSession.start = () => {
+					// update contents
+					setTypingContents(NBSP) // &nbsp; unicode
+					console.log("set", NBSP)
+
+					// hide away micIndicator
+					if (!micIndicatorRef.current || !speakerIndicatorRef.current) {
+						return
+					}
+					speakerIndicatorRef.current.style.display = "flex"
+					micIndicatorRef.current.style.display = "none"
+
+					// show speaking indicator
+					speakerIndicatorRef.current.classList.toggle("a", false)
+					speakerIndicatorRef.current.classList.toggle("b", true) // user is speaking
+				}
 			}
+
+			SRW.start() // start speech recognition
 		}
 
-		if (!gameController.ready) {
-			// not yet registered
-			gameController.register(gamesId) // only register after attaching all the event listeners
+		const _inner = async() => {
+			gameController.dialogueNextEvent = async (dialogueEntry, _) => {
+				if (!speakerIndicatorRef.current) {
+					return
+				}
+
+				// set speaker indicator
+				console.log("<A>", dialogueEntry)
+				const isSystem = dialogueEntry.by === SPEAKER_ID.System
+				const isUser = dialogueEntry.by === SPEAKER_ID.User
+				speakerIndicatorRef.current.classList.toggle("a", isSystem)
+				speakerIndicatorRef.current.classList.toggle("b", isUser) // third state is when neither a nor b is present (middle)
+
+				return
+			}
+
+			let prevAttemptContent = NBSP
+			let prevAttemptDirection: "left"|"center"|"right" = "center"
+			gameController.dialogueAttemptNextEvent = async (dialogueEntry, attemptEntry, hasNextDialogue) => {
+				if (!micIndicatorRef.current || !speakerIndicatorRef.current) {
+					return
+				}
+
+				console.log("<B>", dialogueEntry, attemptEntry)
+
+				// set response indicator
+				setResponseIndidcatorState(0) // good
+
+				if (dialogueEntry.by === SPEAKER_ID.System) {
+					await typeText(attemptEntry.content, speakerIndicatorRef, setTypingContents)
+					
+					// scroll dialogue into view simultaneously
+					shiftScroll(
+						shiftTextParentRef,
+						{
+							ref: prevTextRef,
+							contents: prevAttemptContent,
+							direction: prevAttemptDirection
+						},
+						{
+							ref: currTextRef,
+							contents: attemptEntry.content,
+							direction: "left" // speaker is system
+						})
+					prevAttemptContent = attemptEntry.content // set state
+
+					if (hasNextDialogue) {
+						// is a playthrough
+						return
+					} else {
+						// get user response
+						startRecording()
+					}
+				} else if (dialogueEntry.by === SPEAKER_ID.User) {
+					// show pulsating text
+					if (hasNextDialogue) {
+						// show typing effect since is a playthrough
+						await typeText(attemptEntry.content, speakerIndicatorRef, setTypingContents)
+						await promiseDelay(1000)
+					} else {
+						// give bing sound effect
+						bing.play()
+					}
+
+					shiftScroll(
+						shiftTextParentRef,
+						{
+							ref: prevTextRef,
+							contents: prevAttemptContent,
+							direction: prevAttemptDirection
+						},
+						{
+							ref: currTextRef,
+							contents: attemptEntry.content,
+							direction: "right" // speaker is user
+						})
+
+					// switch speaker
+					speakerIndicatorRef.current.classList.toggle("a", true) // system is speaking
+					speakerIndicatorRef.current.classList.toggle("b", false)
+					await typeText("..........", speakerIndicatorRef, setTypingContents)
+				}
+			}
+
+			gameController.dialogueAttemptFailedEvent = async (dialogueEntry, attemptEntry, suggestedResponse) => {
+				// will never be called on a playthrough
+
+				// set response indicator
+				setResponseIndidcatorState(1) // bad
+				await promiseDelay(1000)
+
+				// let user respond again
+				setResponseIndidcatorState(0)
+				startRecording()
+			}
+
+			gameController.gameEndEvent = async (pointsEarned) => {
+				await promiseDelay(1000)
+
+				scorePoints(pointsEarned, setGameEarnedPoints)
+				setGameEndedState(true)
+			}
+
 			if (!gameController.ready) {
-				// failed to load game object -> unable to render game, send back home page
-				return redirect("/")
-			}
+				// not yet registered
+				await gameController.register(gamesId) // only register after attaching all the event listeners
+				if (!gameController.ready) {
+					// failed to load game object -> unable to render game, send back home page
+					return router.push("/games?_referred-by=2")
+				}
 
-			setGameData(gameController.data!)
+				// set game data
+				setGameData(gameController.data!)
+
+				// start game flow
+				gameController.start()
+			}
 		}
+
+		// invoke async function
+		_inner()
 
 		return () => {
 			// cleanup
+			SRW.stop()
 			SRW.onStart = undefined // unset
 		}
 	}, [speakerIndicatorRef, typingContainerRef])
 
 	return (
-		<main className={`${GameTheme.background} text-white flex flex-col h-svh`}>
+		<main className={`relative ${GameTheme.background} text-white flex flex-col h-svh`}>
 			<div className="flex flex-col items-center p-3">
 				<h1 className="font-bold text-xl">{gameData?.title}</h1>
-				<p>[{gameData?.scenario}]</p>
+				<p>[{gameData?.subtitle}]</p>
 			</div>
 			<div id="world-mapper" className="grow w-full min-h-0">
-				<img src={gameData?.visualise.src} className="w-full h-full object-cover" />
+				<img src={gameData?.backgroundImage} className="w-full h-full object-cover" />
 			</div>
 			<div className="grow flex flex-col p-3 gap-5">
 				<div ref={shiftTextParentRef} id="text-bounds" className="relative overflow-y-clip grow">
@@ -288,8 +398,15 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 				</div>
 				<div ref={speakerIndicatorRef} id="speaking-indicator" className="group flex flex-row items-center gap-3 py-4 a justify-start [&.b]:flex-row-reverse">
 					<div id="speaker-indicator" className="animate-pulse basis-1 h-full shrink-0 grow-0 group-[.a]:bg-party-a group-[.b]:bg-party-b"></div>
-					<p ref={typingContainerRef} className={`group-[.b]:text-right ${activeDialogueInFocus}`}>{typingContents}</p>
+					<p ref={typingContainerRef} className={`group-[.b]:text-right ${activeDialogueInFocus} transition-colors`} style={{color: GameTheme.responseIndicator[responseIndicatorState]}}>{typingContents}</p>
 				</div>
+			</div>
+			<div className={`flex flex-col items-center absolute top-full left-0 w-svw h-svh transition-transform duration-1000 ${GameTheme.background}`}
+				style={{
+					transform: `translateY(${gameEndedState ? -100 : 0}%)`
+				}}
+			>
+				<p className="font-bold text-2xl p-8">{gameEarnedPoints}</p>
 			</div>
 		</main>
 	)

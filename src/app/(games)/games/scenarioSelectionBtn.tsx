@@ -4,12 +4,15 @@ import { ScenarioEntry } from "@/app/lib/definitions";
 import { createNewGame } from "@/app/actions"
 import { createContext, Dispatch, SetStateAction, useContext, useState } from "react";
 import Alerts from "@/app/lib/ui/alerts";
+import { useRouter } from "next/navigation";
 
 const WindowScenario = createContext<{errorMessageState?: string, setErrorMessageState?: Dispatch<SetStateAction<string|undefined>>}>({})
 
 function ScenarioSelectionPanel({ scenarioList }: { scenarioList: Array<ScenarioEntry> }) {
 	let { setErrorMessageState } = useContext(WindowScenario)
 	let [clickDebounce, setClickDebounce] = useState(true)
+
+	const router = useRouter()
 
 	return (
 		scenarioList.map((scenario, i) => {
@@ -35,6 +38,8 @@ function ScenarioSelectionPanel({ scenarioList }: { scenarioList: Array<Scenario
 								if (setErrorMessageState) {
 									setErrorMessageState(returnPayload.message) // show message
 								}
+							} else {
+								router.push(`/games/${returnPayload.gameID}`) // .success is true, implies .gameID exists
 							}
 						}
 					}

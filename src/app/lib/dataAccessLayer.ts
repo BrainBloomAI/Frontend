@@ -10,7 +10,7 @@ export const upgradeSession = async (authToken: string) => {
 	 * authenticate the current session with supplied authToken
 	 * upgrade session privileges
 	 * 
-	 * returns nothing
+	 * returns void
 	 */
 	let session = await getSession()
 	if (session == null) {
@@ -29,7 +29,34 @@ export const upgradeSession = async (authToken: string) => {
 	console.log("authenticated session", session)
 
 	// overwrite cookie session
-	overwriteSession(session)
+	await overwriteSession(session)
+
+	return session
+}
+
+export const downgradeSession = async () => {
+	/**
+	 * removes authentication from current session
+	 * 
+	 * returns void
+	 */
+	let session = await getSession()
+	if (session == null) {
+		// get new session
+		session = await createSession() // no authentication
+		return
+	}
+
+	session.authenticated = false
+	session._authTokenValidDuration = undefined // unset
+	session._authTokenFetchTime = undefined
+	session.authToken = undefined
+
+	// update expire timings
+	session.expiresAt = new Date(+new Date() +6.048e+8)
+
+	// overwrite cookie session
+	await overwriteSession(session)
 
 	return session
 }

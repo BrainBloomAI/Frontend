@@ -2,7 +2,7 @@ import "server-only"
 
 import { SignJWT, jwtVerify } from 'jose'
 import { cookies } from "next/headers"
-import axios, { AxiosInstance } from "axios"
+import axios, { AxiosInstance, AxiosResponse } from "axios"
 
 const SECRET_KEY = process.env.SECRET_KEY
 const encodedSecretKey = new TextEncoder().encode(SECRET_KEY)
@@ -37,25 +37,26 @@ function createBridge(authToken?: string, _retrievedAt?: number, _authTokenValid
 	 */
 	const inst = axios.create({
 		baseURL: BRIDGE_CONFIG.baseURL,
-		timeout: 1000,
+		timeout: 5000,
 		headers: {
 			[BRIDGE_CONFIG.authTokenHeaderKeyName]: authToken
 		}
 	})
 
 	if (authToken && _retrievedAt && _authTokenValidDuration) {
-		inst.interceptors.request.use((config: any) => {
+		inst.interceptors.request.use(async (config: any) => {
 			const controller = new AbortController()
 
-			if (+new Date() -_retrievedAt >= _authTokenValidDuration -600000) {
+			console.log("\n\n\n\n\nURL", config.url)
+			if (config.url !== "/identity/logout" && +new Date() -_retrievedAt >= _authTokenValidDuration -600000) {
 				// 10 minutes before expiry -> get new token
-				const refreshedToken = axios({
+				const refreshedToken = await axios({
 					method: "POST",
 					url: `${BRIDGE_CONFIG.baseURL}/identity/refreshSession`,
 					headers: {
 						authtoken: authToken // lowercase headers
 					}
-				}).then((r: Response & { data: string }) => {
+				}).then((r: AxiosResponse & { data: string }) => {
 					if (r.status === 200) {
 						return r.data.slice(-10) // extract token
 					}
@@ -67,6 +68,7 @@ function createBridge(authToken?: string, _retrievedAt?: number, _authTokenValid
 
 				if (refreshedToken) {
 					// managed to obtain a valid refresh token
+					console.log("updated token", refreshedToken)
 					inst.defaults.headers[BRIDGE_CONFIG.authTokenHeaderKeyName] = refreshedToken
 				} else {
 					// not able to refresh token, abort request
@@ -150,7 +152,7 @@ export async function getSession(): Promise<ExtSessionPayload|undefined> {
 		return
 	}
 
-	sessionData.bridge = createBridge(sessionData.authToken)
+	sessionData.bridge = createBridge(sessionData.authToken, sessionData._authTokenFetchTime, sessionData._authTokenValidDuration)
 	return sessionData
 }
 

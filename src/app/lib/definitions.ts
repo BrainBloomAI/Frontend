@@ -1,5 +1,5 @@
 import { z } from "zod"
- 
+
 export const LoginFormSchema = z.object({
 	name: z
 		.string()
@@ -68,8 +68,8 @@ export type ScenarioEntry = {
 }
 
 export enum SPEAKER_ID {
-	System, // scenario computer reponse
-	User // PWIDs
+	System = "system", // scenario computer reponse
+	User = "user" // PWIDs
 }
 
 export enum RESPONSE_STATUS {
@@ -79,19 +79,23 @@ export enum RESPONSE_STATUS {
 }
 
 export type AttemptEntry = {
-	id: string,
+	attemptID: string,
 
+	dialogueId: string,
 	attemptNumber: number,
+
 	content: string,
-	successful: boolean
+	successful: boolean,
 
 	timeTaken: number,
-	dialogueId: string
+	timestamp: string // ISO format
 }
 
 export type DialogueEntry = {
-	id: string,
-	speaker: SPEAKER_ID,
+	dialogueID: string,
+	by: SPEAKER_ID,
+
+	attemptsCount: number,
 	successful: boolean,
 
 	createdTimestamp: string, // iso format
@@ -100,20 +104,29 @@ export type DialogueEntry = {
 	attempts: Array<AttemptEntry>
 }
 
+export type ScenarioData = {
+	scenarioID: string,
+	name: string, // retail
+	backgroundImage: string, // baseURL/public/img/${backgroundImage}
+	description: string,
+	modelRole: string, // customer
+	userRole: string, // retail worker
+	created: string // ISO format
+}
+
 export type GameData = {
 	gameID: string,
 	startedTimestamp: string, // ISO format
+	pointsEarned?: number, // TODO: variable presence?
 	status: "ongoing" | "completed" | "failed", // Enum for status
 	userID: string,
 	scenarioID: string,
 	dialogues: Array<DialogueEntry>,
-	scenarioData: {
-		name: string,
-		backgroundImage: string
-	}
+	scenario: ScenarioData
 }
 
 export type GameDescriptionData = {
-	title: string,
+	title: string, // retail
+	subtitle: string, // retail workrer
 	backgroundImage: string	
 }

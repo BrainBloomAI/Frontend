@@ -1,10 +1,12 @@
 /**
- * Synthesis text to speech for game
+ * Recognition wrapper that calls on the native SpeechRecognition web API for speech to text for game
  * 
  * Provides a wrapper around the native SpeechRecognition object
  */
 
 "use client"
+
+import { useEffect } from "react"
 
 type RecordingSession = {
 	updateContent?: (updatedContents: string) => void, // speech on-going updates
@@ -12,28 +14,37 @@ type RecordingSession = {
 	end?: (finalCOntents: string) => void // speech end
 }
 
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-const SpeechGrammarList = window.SpeechGrammarList || window.webkitSpeechGrammarList;
-const SpeechRecognitionEvent = window.SpeechRecognitionEvent || window.webkitSpeechRecognitionEvent;
+enum SRWState {
+	Running,
+	Stop
+}
 
 export class SpeechRecognitionWrapper {
 	sr: SpeechRecognition
+
+	state: SRWState
 
 	currentRecordingSession: RecordingSession
 	onStart?: (recordingSession: RecordingSession) => void
 
 	constructor() {
+		const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+		const SpeechGrammarList = window.SpeechGrammarList || window.webkitSpeechGrammarList;
+		const SpeechRecognitionEvent = window.SpeechRecognitionEvent || window.webkitSpeechRecognitionEvent;
+
 		// speech recognition instantiate and setup
 		this.sr = new SpeechRecognition()
 		this.sr.continuous = true
 		this.sr.interimResults = true
+
+		// set state
+		this.state = SRWState.Stop
 
 		// memory object
 		this.currentRecordingSession = {}
 
 		// attach events
 		this.sr.addEventListener("result", e => {
-			console.log("e", e)
 			let resultList = e.results
 			let singleResult = resultList[0] // at position 0
 			let optimalResult = singleResult[0] // first alternative
@@ -41,7 +52,8 @@ export class SpeechRecognitionWrapper {
 			if (singleResult.isFinal) {
 				// final one
 				if (this.currentRecordingSession.end) {
-					this.currentRecordingSession.end(optimalResult.transcript)
+					this.currentRecordingSession.end(optimalResult.transcript) // .stop() will cleanup session, finish session job first
+					this.stop()
 				}
 			} else {
 				if (this.currentRecordingSession.updateContent) {
@@ -77,9 +89,10 @@ export class SpeechRecognitionWrapper {
 
 	start() {
 		this.sr.start()
+		this.state = SRWState.Running
 		console.log("started")
 		if (this.onStart) {
-			this.currentRecordingSession = {}
+			this.currentRecordingSession = {} // clear session
 			this.onStart(this.currentRecordingSession) // pass by memory
 		}
 	}
@@ -89,8 +102,14 @@ export class SpeechRecognitionWrapper {
 	}
 
 	stop() {
-		if (this.currentRecordingSession.end) {
-			this.sr.stop() // stop the object
+		if (this.state === SRWState.Running) {
+			this.sr.stop() // stop SpeechRecognition object
+
+			// set state
+			this.state = SRWState.Stop
+
+			// clear session
+			this.currentRecordingSession = {}
 		}
 	}
 }

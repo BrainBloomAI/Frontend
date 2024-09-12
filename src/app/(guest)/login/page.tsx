@@ -14,7 +14,7 @@ export default function Signup() {
 	return (
 		<>
 			<div className="relative grow flex flex-col">
-				<h1 className="font-bold text-2xl pb-2">Signup</h1>
+				<h1 className="font-bold text-2xl pb-2">Login</h1>
 				<form className="grow flex flex-col gap-3" action={action}>
 					<input className={inputFormStyling} name="name" type="text" placeholder="Username" autoComplete="email" />
 					{state?.errors?.name && <p className={inputErrorStyling}>{state.errors.name}</p>}
