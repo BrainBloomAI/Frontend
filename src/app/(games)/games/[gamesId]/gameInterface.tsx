@@ -164,12 +164,17 @@ const scorePoints = (points: number, setState: Dispatch<SetStateAction<string>>)
 	const duration = 2 *1000 // 2 seconds
 
 	let start = +new Date() // ms
-	setInterval(() => {
+	let intervalID: NodeJS.Timeout;
+	intervalID = setInterval(() => {
 		let durElapsed = +new Date() -start
 		let lerp = Math.min(durElapsed /duration, 1)
 
 		let pointEarn = Math.floor(lerp *points)
 		setState(`+${pointEarn}`)
+
+		if (lerp === 1) {
+			clearInterval(intervalID)
+		}
 	}, 100)
 }
 
