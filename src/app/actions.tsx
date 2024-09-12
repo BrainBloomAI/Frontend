@@ -322,3 +322,70 @@ export async function newDialogue(content: string, timeTaken: number): Promise<{
 		}
 	}
 }
+
+
+
+
+export async function updateMindsEvaluation(state: any, formData: any) {
+	// Validate the fields, assuming the necessary validation schema is set up.
+	const validatedFields = {
+		targetUsername: formData.get("targetUsername"),
+		listening: parseFloat(formData.get("listening")) || 0,
+		eq: parseFloat(formData.get("eq")) || 0,
+		tone: parseFloat(formData.get("tone")) || 0,
+		helpfulness: parseFloat(formData.get("helpfulness")) || 0,
+		clarity: parseFloat(formData.get("clarity")) || 0,
+		assessment: formData.get("assessment"),
+	}
+
+	if (!validatedFields.targetUsername || !validatedFields.assessment) {
+		// Return errors if required fields are missing
+		return {
+			errors: { general: "All fields are required!" },
+		}
+	}
+
+	let session = await getSession()
+	if (!session || session.authenticated === false) {
+		// not authenticated
+		return {
+			success: false,
+			message: "Not authenticated"
+		}
+	}
+
+	let errorMessage: string | null = null;
+
+	// Post request to update the evaluation
+	const response = await session.bridge
+		.post("/staff/updateMindsEvaluation", {
+			targetUsername: validatedFields.targetUsername,
+			listening: validatedFields.listening,
+			eq: validatedFields.eq,
+			tone: validatedFields.tone,
+			helpfulness: validatedFields.helpfulness,
+			clarity: validatedFields.clarity,
+			assessment: validatedFields.assessment,
+		})
+		.then((r) => {
+			if (r.status === 200) {
+				return r.data;
+			} else {
+				return Promise.reject(r.status);
+			}
+		})
+		.catch((err) => {
+			if (err.status === 400) {
+				errorMessage = "Invalid data provided";
+			}
+			return;
+		});
+
+	if (response) {
+		// Successful update, handle redirection or success feedback
+		return { message: "Evaluation successfully updated!" };
+	} else {
+		// Failed update, handle errors
+		return { message: errorMessage || "Failed to update evaluation" };
+	}
+}

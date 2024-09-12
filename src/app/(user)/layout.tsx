@@ -9,8 +9,12 @@ export default function RootLayout({
 }>) {
   return (
     <>
+    <div id="guest-bg" className="p-9 flex flex-col bg-white h-svh">
       <TopbarComponent />
       {children}
+      </div>
+      
     </>
   );
+
 }
