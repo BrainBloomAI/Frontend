@@ -47,7 +47,6 @@ function createBridge(authToken?: string, _retrievedAt?: number, _authTokenValid
 		inst.interceptors.request.use(async (config: any) => {
 			const controller = new AbortController()
 
-			console.log("\n\n\n\n\nURL", config.url)
 			if (config.url !== "/identity/logout" && +new Date() -_retrievedAt >= _authTokenValidDuration -600000) {
 				// 10 minutes before expiry -> get new token
 				const refreshedToken = await axios({
@@ -143,7 +142,6 @@ export async function createSession(): Promise<ExtSessionPayload> {
 
 export async function getSession(): Promise<ExtSessionPayload|undefined> {
 	const cookie = getCookie()
-	console.log("COOKIE", cookie)
 	if (cookie == null) {
 		return
 	}

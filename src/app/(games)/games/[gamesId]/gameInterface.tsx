@@ -6,7 +6,7 @@ import { Microphone } from "@phosphor-icons/react"
 
 import { StaticImageData } from "next/image"
 import { Game } from "@/app/lib/controllers/game"
-import { GameDescriptionData, GameData, SPEAKER_ID } from "@/app/lib/definitions"
+import { GameDescriptionData, GameData, SPEAKER_ID, EvaluationData } from "@/app/lib/definitions"
 import { redirect, useRouter } from "next/navigation"
 import { Dispatch, RefObject, SetStateAction, useEffect, useReducer, useRef, useState } from "react"
 import { Console } from "console"
@@ -190,6 +190,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 
 	const [gameEndedState, setGameEndedState] = useState(false)
 	const [gameEarnedPoints, setGameEarnedPoints] = useState("0")
+	const [evalData, setEvalData] = useState<EvaluationData>()
 	const [gameData, setGameData] = useState<GameDescriptionData>()
 
 	const router = useRouter()
@@ -358,6 +359,12 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 				setGameEndedState(true)
 			}
 
+			gameController.gameEvalEvent = async (evaluation) => {
+				if (evaluation) {
+					setEvalData(evaluation)
+				}
+			}
+
 			if (!gameController.ready) {
 				// not yet registered
 				await gameController.register(gamesId) // only register after attaching all the event listeners
@@ -418,9 +425,42 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 					transform: `translateY(${gameEndedState ? -100 : 0}%)`
 				}}
 			>
-				<p className="font-bold text-4xl">Game Complete!</p>
-				<p className="font-bold text-2xl py-4 mt-16">Points Earned!</p>
-				<p className="font-bold text-8xl p-8">{gameEarnedPoints}</p>
+				<p className="font-bold text-2xl">Game Complete!</p>
+				<p className="font-bold text-8xl p-2 mt-6">{gameEarnedPoints}</p>
+				<p className="font-bold text-xl">Points Earned!</p>
+				<table className="w-full grow min-h-0 overflow-auto">
+					<tbody>
+						{
+							evalData && ["listening", "eq", "tone", "helpfulness", "clarity"].map((metric, i) => {
+								let metricKey = metric as "listening"|"eq"|"tone"|"helpfulness"|"clarity"
+								return (
+									<tr key={i}>
+										<td className="pb-4 pr-4 align-bottom">{metric.charAt(0).toUpperCase() + metric.substr(1).toLowerCase()}</td>
+										<td className="pb-4 w-full">
+											<div className="flex flex-col gap-2">
+												<p className="self-end">{evalData[metricKey]}</p>
+												<div className="relative w-full h-4 rounded bg-slate-500 border border-slate-300 border-solid">
+													<div className="absolute top-0 left-0 h-full scale-x-0 origin-left"
+														style={{
+															backgroundColor: "rgb(0 255 0)",
+															width: `${evalData[metricKey]}%`,
+															animationName: "grow-in",
+															animationDelay: "1500ms",
+															animationDuration: "2s",
+															animationFillMode: "forwards",
+															animationTimingFunction: "ease-out"
+														}}>
+													</div>
+												</div>
+											</div>
+										</td>
+									</tr>
+								)
+							})
+						}
+					</tbody>
+				</table>
+				<a className="font-bold underline text-right w-full" href="/games">Go to home</a>
 			</div>
 		</main>
 	)

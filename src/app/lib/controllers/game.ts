@@ -1,7 +1,7 @@
 "use client"
 
 import { getGameData, newDialogue } from "@/app/actions"
-import { SPEAKER_ID, RESPONSE_STATUS, AttemptEntry, DialogueEntry, GameData, GameDescriptionData } from "@/app/lib/definitions"
+import { SPEAKER_ID, RESPONSE_STATUS, AttemptEntry, DialogueEntry, GameData, GameDescriptionData, EvaluationData } from "@/app/lib/definitions"
 
 /**
  * front-end wrapper to interact with backend interface
@@ -41,6 +41,7 @@ export class Game {
 	dialogueAttemptFailedEvent?: (DialogueEntry: DialogueEntry, attemptEntry: AttemptEntry, suggestedResponse: string) => void|Promise<void> // fired when user made an attempt but not accurate (never fired on playthroughs)
 
 	gameEndEvent?: (addedScore: number) => void // fired when game ended (will be fired for playthroughs too)
+	gameEvalEvent?: (evaluation?: EvaluationData) => void // fired after game ended and evaluation metrics are available (will be fired for playthroughs too, immediately)
 
 	constructor() {
 		// states and references
@@ -107,13 +108,7 @@ export class Game {
 		}
 
 		if (showEndScreen && this.gameEndEvent) {
-			if (this.pointsEarned) {
-				this.gameEndEvent(this.pointsEarned)
-			} else {
-				// not provided somehow
-				console.warn("WARNING: .pointsEarned NOT PROVIDED in GET /game return payload")
-				this.gameEndEvent(-2)
-			}
+			this.endGame()
 		}
 	}
 
@@ -147,6 +142,41 @@ export class Game {
 			} else {
 				await this.dialogueAttemptNextEvent(dialogueData, dialogueData.attempts[0], hasNextDialogue)
 			}
+		}
+	}
+
+	async endGame() {
+		// game ended
+		this.gameEnded = true
+
+		// fire event
+		console.log("CHECKING GAME END EVENT")
+		if (this.gameEndEvent) {
+			if (this.pointsEarned) {
+				this.gameEndEvent(this.pointsEarned)
+			} else {
+				// not provided somehow
+				console.warn("WARNING: .pointsEarned not set when calling .endGame()")
+				this.gameEndEvent(-1)
+			}
+		}
+
+		console.log("CHECKING GAME DATA", this.gameEvalEvent)
+		if (this.gameEvalEvent) {
+			const gameDataPayload = await getGameData(this.gameID!)
+			console.log("GOT GAME DATA", gameDataPayload)
+			if (!gameDataPayload.success) {
+				this.gameEvalEvent() // failed, send empty payload
+				return 0
+			}
+
+			const gameData = gameDataPayload.data!
+			if (!gameData.evaluation) {
+				this.gameEvalEvent() // failed, send empty payload
+				return 0
+			}
+
+			this.gameEvalEvent(gameData.evaluation)
 		}
 	}
 
@@ -268,19 +298,13 @@ export class Game {
 				}, attemptData, responseData.suggestedAIResponse)
 			}
 		} else {
-			// game ended
-			this.gameEnded = true
-
-
-			// fire event
-			if (this.gameEndEvent) {
-				if ("pointsEarned" in responseData) {
-					this.gameEndEvent(responseData.pointsEarned)
-				} else {
-					// no AI eval, use -1 as placeholder
-					this.gameEndEvent(-1)
-				}
+			if ("pointsEarned" in responseData) {
+				// set data
+				this.pointsEarned = responseData.pointsEarned
 			}
+
+			// start sequence
+			this.endGame()
 		}
 
 		return 0

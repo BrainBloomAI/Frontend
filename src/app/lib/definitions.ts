@@ -114,6 +114,18 @@ export type ScenarioData = {
 	created: string // ISO format
 }
 
+export type EvaluationData = {
+	evaluationID: string,
+	listening: number,
+	eq: number,
+	tone: number,
+	helpfulness: number,
+	clarity: number,
+	simpleDescription: string,
+	fullDescription: string,
+	associatedGameID: string
+}
+
 export type GameData = {
 	gameID: string,
 	startedTimestamp: string, // ISO format
@@ -122,7 +134,8 @@ export type GameData = {
 	userID: string,
 	scenarioID: string,
 	dialogues: Array<DialogueEntry>,
-	scenario: ScenarioData
+	scenario: ScenarioData,
+	evaluation: EvaluationData|null
 }
 
 export type GameDescriptionData = {

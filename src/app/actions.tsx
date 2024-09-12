@@ -280,7 +280,6 @@ export async function createNewGame(scenarioID: string) {
 	 * creates a new game with the supplied scenarioID
 	 */
 	let session = await getSession()
-	console.log("\n\n\nSESSION", session)
 	if (!session || session.authenticated === false) {
 		// not authenticated
 		return {
