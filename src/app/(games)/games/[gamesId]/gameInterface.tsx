@@ -147,6 +147,21 @@ const shiftScroll = (
 	}, 1000) // after transition is finished
 }
 
+const scorePoints = (points: number, setState: Dispatch<SetStateAction<string>>) => {
+	/**
+	 * show score point over a duration of 5 seconds
+	 */
+
+	let start = +new Date() // ms
+	setTimeout(() => {
+		let durElapsed = +new Date() -start
+		let lerp = Math.min(durElapsed /5, 1)
+
+		let pointEarn = Math.floor(lerp *points)
+		setState(`+${pointEarn}`)
+	}, 100)
+}
+
 export default function GameInterface({ gamesId }: { gamesId: string }) {
 	const gameController = new Game()
 
@@ -163,7 +178,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 	const typingContainerRef = useRef<HTMLParagraphElement>(null)
 
 	const [gameEndedState, setGameEndedState] = useState(false)
-	const [gameEarnedPoints, setGameEarnedPoints] = useState(0)
+	const [gameEarnedPoints, setGameEarnedPoints] = useState("0")
 	const [gameData, setGameData] = useState<GameDescriptionData>()
 
 	const router = useRouter()
@@ -327,7 +342,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 			gameController.gameEndEvent = async (pointsEarned) => {
 				await promiseDelay(1000)
 
-				setGameEarnedPoints(pointsEarned)
+				scorePoints(pointsEarned, setGameEarnedPoints)
 				setGameEndedState(true)
 			}
 
