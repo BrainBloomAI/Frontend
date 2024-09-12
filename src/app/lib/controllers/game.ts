@@ -35,10 +35,11 @@ export class Game {
 	pointsEarned?: number
 
 	_dialoguePointer: number // index of current dialogue
+	_currDialogueAttempts: number // incremental index to keep track number of failed attempts for current dialogue
 
 	dialogueNextEvent?: (dialogueEntry: DialogueEntry, hasNextDialogue: boolean) => void|Promise<void> // fired whenever new dialogue appears
 	dialogueAttemptNextEvent?: (dialogueEntry: DialogueEntry, attemptEntry: AttemptEntry, hasNextDialogue: boolean) => void|Promise<void> // fired whenever new attempt appears (first attempt fires immediately right after dialogue gets created)
-	dialogueAttemptFailedEvent?: (DialogueEntry: DialogueEntry, attemptEntry: AttemptEntry, suggestedResponse: string) => void|Promise<void> // fired when user made an attempt but not accurate (never fired on playthroughs)
+	dialogueAttemptFailedEvent?: (DialogueEntry: DialogueEntry, attemptEntry: AttemptEntry, suggestedResponse: string, showSuggestedResponse: boolean) => void|Promise<void> // fired when user made an attempt but not accurate (never fired on playthroughs)
 
 	gameEndEvent?: (addedScore: number) => void // fired when game ended (will be fired for playthroughs too)
 	gameEvalEvent?: (evaluation?: EvaluationData) => void // fired after game ended and evaluation metrics are available (will be fired for playthroughs too, immediately)
@@ -46,6 +47,7 @@ export class Game {
 	constructor() {
 		// states and references
 		this._dialoguePointer = -1 // initial state
+		this._currDialogueAttempts = 0
 
 		this.ready = false
 		this.gameEnded = false
@@ -65,9 +67,9 @@ export class Game {
 
 			// set data
 			this.data = {
-				title: gameData.scenario.name,
-				subtitle: gameData.scenario.userRole,
-				backgroundImage: gameData.scenario.backgroundImage
+				title: gameData.scenario!.name,
+				subtitle: gameData.scenario!.userRole,
+				backgroundImage: gameData.scenario!.backgroundImage
 			}
 
 			// set states
@@ -76,6 +78,7 @@ export class Game {
 
 			this.dialogues = gameData.dialogues
 			this._dialoguePointer = -1
+			this._currDialogueAttempts = 0
 
 			if (this.ready) {
 				this.pointsEarned = gameData.pointsEarned
@@ -129,6 +132,7 @@ export class Game {
 		}
 
 		this._dialoguePointer++
+		this._currDialogueAttempts = 0
 		const dialogueData = this.dialogues![this._dialoguePointer] // guaranteed to exist since this.ready is true
 		const hasNextDialogue = this.gameEnded || this._dialoguePointer <= this.dialogues!.length -2
 
@@ -268,6 +272,7 @@ export class Game {
 			this._loadNext()
 		} else if ("suggestedAIResponse" in responseData) {
 			// user response can be better
+			this._currDialogueAttempts++
 
 			// build attempt
 			const attemptData = {
@@ -295,7 +300,7 @@ export class Game {
 					gameID: this.gameID!,
 
 					attempts: [attemptData]
-				}, attemptData, responseData.suggestedAIResponse)
+				}, attemptData, responseData.suggestedAIResponse, this._currDialogueAttempts >= 2)
 			}
 		} else {
 			if ("pointsEarned" in responseData) {

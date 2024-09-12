@@ -1,6 +1,6 @@
 "use server"
 
-import { LoginFormSchema, SignupFormSchema, FormState, ScenarioEntry } from "@/app/lib/definitions"
+import { LoginFormSchema, SignupFormSchema, FormState, ScenarioEntry, ProfileData } from "@/app/lib/definitions"
 import { createSession, getSession } from "@/app/lib/sessionManager"
 import { downgradeSession, upgradeSession } from "@/app/lib/dataAccessLayer"
 import { redirect } from "next/navigation"
@@ -424,6 +424,55 @@ export async function getGameData(gameID: string) {
 	}
 }
 
+export async function getAllGameData() {
+	/**
+	 * gets user's games throughout lifetime with respective evaluation data from server
+	 */
+	let session = await getSession()
+	if (!session || session.authenticated === false) {
+		// not authenticated
+		return {
+			success: false,
+			message: "Not authenticated"
+		}
+	}
+
+	console.log("\n\n\n\n\tFETCHING:", gameID)
+	let errorMessage: string|undefined;
+	let params = {
+		includeEvaluation: true
+	}
+	const gameData: GameData|undefined = await session.bridge.get("/game",
+		{ params } as AxiosRequestConfig & { params: { includeScenario?: true, includeDialogues?: true, includeEvaluation?: true }}
+	).then((r: AxiosResponse & { data: GameData }) => {
+		if (r.status === 200) {
+			return r.data
+		}
+
+		throw new Error(`FAILED: Caught status in getAllGameData(), ${r.status}`)
+	}).catch((err: any) => { // TODO: err is Erroobject and r.status
+		// server failed to respond
+		if (err.response) {
+			errorMessage = err.response.data.split(": ")[1]
+		}
+		console.warn("getAllGameGame() failed to obtain a response, will fail", err)
+	})
+
+	console.log("\n\n\n\nreturned payload!!\n", gameData)
+	if (gameData) {
+		return {
+			success: true,
+			data: gameData
+		}
+	} else {
+		console.log("FAILED", errorMessage)
+		return {
+			success: false,
+			message: errorMessage ?? "Failed to communicate with server (31)"
+		}
+	}
+}
+
 
 type NewDialogueBackendResponse = {
 	message: string,
@@ -494,8 +543,45 @@ export async function newDialogue(content: string, timeTaken: number): Promise<{
 	}
 }
 
+export async function getProfileData() {
+	let session = await getSession()
+	if (!session || session.authenticated === false) {
+		// not authenticated
+		return {
+			success: false,
+			message: "Not authenticated"
+		}
+	}
 
+	let errorMessage: string|undefined;
+	const response: ProfileData = await session.bridge.get("/identity")
+		.then((r: AxiosResponse & { data: GameData }) => {
+			if (r.status === 200) {
+				return r.data
+			}
 
+			throw new Error(`FAILED: Caught status in getProfileData(), ${r.status}`)
+		}).catch((err: any) => { // TODO: err is Erroobject and r.status
+			// server failed to respond
+			if (err.response) {
+				errorMessage = err.response.data.split(": ")[1]
+			}
+			console.warn("getProfileData() failed to obtain a response, will fail")
+		})
+
+	if (response) {
+		return {
+			success: true,
+			data: response
+		}
+	} else {
+		console.log("FAILED", errorMessage)
+		return {
+			success: false,
+			message: errorMessage ?? "Failed to communicate with server (6)"
+		}
+	}
+}
 
 export async function updateMindsEvaluation(state: any, formData: any) {
 	// Validate the fields, assuming the necessary validation schema is set up.

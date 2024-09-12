@@ -193,6 +193,8 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 	const speakerIndicatorRef = useRef<HTMLDivElement>(null)
 	const typingContainerRef = useRef<HTMLParagraphElement>(null)
 
+	const [suggestedConvoResponse, setSuggestedConvoResponse] = useState<string|null>(null)
+
 	const [gameEndedState, setGameEndedState] = useState(false)
 	const [gameEarnedPoints, setGameEarnedPoints] = useState("0")
 	const [evalData, setEvalData] = useState<EvaluationData>()
@@ -214,7 +216,9 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 		let SRW = new SpeechRecognitionWrapper()
 
 		// game sound effects
-		let bing = new Audio("/sounds/bing.mp3")
+		let bing = new Audio("/sounds/bing.mp3") // okay
+		let dong = new Audio("/sounds/dong.mp3") // failed
+		let beep = new Audio("/sounds/beep.mp3") // celebratory
 
 		const startRecording = async () => {
 			// show user speaker to prompt
@@ -286,6 +290,9 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 
 				console.log("<B>", dialogueEntry, attemptEntry)
 
+				// hide suggested response if shown
+				setSuggestedConvoResponse(null)
+
 				// set response indicator
 				setResponseIndidcatorState(0) // good
 
@@ -345,8 +352,15 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 				}
 			}
 
-			gameController.dialogueAttemptFailedEvent = async (dialogueEntry, attemptEntry, suggestedResponse) => {
+			gameController.dialogueAttemptFailedEvent = async (dialogueEntry, attemptEntry, suggestedResponse, showSuggestedResponse) => {
 				// will never be called on a playthrough
+				if (showSuggestedResponse) {
+					// show suggested response to help user
+					setSuggestedConvoResponse(suggestedResponse)
+				}
+
+				// play failed sound effect
+				dong.play()
 
 				// set response indicator
 				setResponseIndidcatorState(1) // bad
@@ -360,6 +374,10 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 			gameController.gameEndEvent = async (pointsEarned) => {
 				await promiseDelay(1000)
 
+				// play sound effect
+				beep.play()
+
+				// set state to show end screen game
 				scorePoints(pointsEarned, setGameEarnedPoints)
 				setGameEndedState(true)
 			}
@@ -402,8 +420,17 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 				<h1 className="font-bold text-xl">{gameData?.title}</h1>
 				<p>[{gameData?.subtitle}]</p>
 			</div>
-			<div id="world-mapper" className="grow w-full min-h-0">
-				<img src={`http://localhost:8000/cdn/${gameData?.backgroundImage}`} className="w-full h-full object-cover" />
+			<div id="world-mapper" className="grow relative w-full min-h-0">
+				<img src={`${GameTheme.serverOrigin}cdn/${gameData?.backgroundImage}`} className="w-full h-full object-cover" />
+				<div className={`absolute top-0 left-0 w-full h-full p-4 bg-[#E17C1E] hidden opacity-0 transition-opacity`}
+					style={{
+						display: `${suggestedConvoResponse ? "block" : "none"}`,
+						opacity: `${suggestedConvoResponse ? 1 : 0}`
+					}}
+				>
+					<p className="text-2xl text-white pb-4">Suggested Response:</p>
+					<p className="text-2xl font-bold text-white">{suggestedConvoResponse}</p>
+				</div>
 			</div>
 			<div className="grow flex flex-col p-3 gap-5">
 				<div ref={shiftTextParentRef} id="text-bounds" className="relative overflow-y-clip grow">

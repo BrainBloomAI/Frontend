@@ -133,8 +133,8 @@ export type GameData = {
 	status: "ongoing" | "completed" | "failed", // Enum for status
 	userID: string,
 	scenarioID: string,
-	dialogues: Array<DialogueEntry>,
-	scenario: ScenarioData,
+	dialogues?: Array<DialogueEntry>,
+	scenario?: ScenarioData,
 	evaluation: EvaluationData|null
 }
 
@@ -142,4 +142,22 @@ export type GameDescriptionData = {
 	title: string, // retail
 	subtitle: string, // retail workrer
 	backgroundImage: string	
+}
+
+export type ProfileData = {
+	userID: string,
+	username: string,
+	email: string,
+	role: string,
+	points: 135,
+	created: string,
+	lastLogin: string,
+	activeGame?: string,
+	mindsListening?: number,
+	mindsEQ?: number,
+	mindsTone?: number,
+	mindsHelpfulness?: number,
+	mindsClarity?: number,
+	mindsAssessment?: number,
+	banned: boolean
 }

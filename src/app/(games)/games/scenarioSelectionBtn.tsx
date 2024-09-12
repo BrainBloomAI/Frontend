@@ -6,6 +6,7 @@ import { createContext, Dispatch, SetStateAction, useContext, useState } from "r
 import Alerts from "@/app/lib/ui/alerts";
 import { useRouter } from "next/navigation";
 import { getSession } from "@/app/lib/sessionManager";
+import { GameTheme } from "@/app/(games)/games/config";
 
 const WindowScenario = createContext<{errorMessageState?: string, setErrorMessageState?: Dispatch<SetStateAction<string|undefined>>}>({})
 
@@ -21,7 +22,7 @@ function ScenarioSelectionPanel({ scenarioList }: { scenarioList: Array<Scenario
 				<button
 					key={i}
 					className="bg-cover bg-center w-full aspect-square rounded border border-solid border-black bg-accent flex flex-col justify-end p-2"
-					style={{backgroundImage: `url(${scenario.backgroundImage})`}}
+					style={{backgroundImage: `url(${GameTheme.serverOrigin}cdn/${scenario.backgroundImage})`}}
 					onClick={
 						async() => {
 							// check debounce
@@ -45,7 +46,7 @@ function ScenarioSelectionPanel({ scenarioList }: { scenarioList: Array<Scenario
 						}
 					}
 				>
-					<p className="w-full text-white font-xl font-bold text-center bg-black rounded">{scenario.name}</p>
+					<p className="w-full p-2 text-white font-xl font-bold text-center bg-black rounded">{scenario.name}</p>
 				</button>
 			)
 		})
