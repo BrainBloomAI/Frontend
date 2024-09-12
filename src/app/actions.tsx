@@ -1,6 +1,6 @@
 "use server"
 
-import { LoginFormSchema, SignupFormSchema, FormState, ScenarioEntry, ProfileData } from "@/app/lib/definitions"
+import { LoginFormSchema, SignupFormSchema, FormState, ScenarioEntry, ProfileData, ExtProfileData } from "@/app/lib/definitions"
 import { createSession, getSession } from "@/app/lib/sessionManager"
 import { downgradeSession, upgradeSession } from "@/app/lib/dataAccessLayer"
 import { redirect } from "next/navigation"
@@ -554,8 +554,8 @@ export async function getProfileData() {
 	}
 
 	let errorMessage: string|undefined;
-	const response: ProfileData = await session.bridge.get("/identity")
-		.then((r: AxiosResponse & { data: GameData }) => {
+	const response: ExtProfileData = await session.bridge.get("/identity")
+		.then((r: AxiosResponse & { data: ProfileData }) => {
 			if (r.status === 200) {
 				return r.data
 			}
@@ -570,9 +570,32 @@ export async function getProfileData() {
 		})
 
 	if (response) {
+		const gameDataResponse: Array<GameData> = await session.bridge.get("/game", { params: { includeScenario: true, includeEvaluation: true }})
+			.then((r: AxiosResponse & { data: Array<GameData> }) => {
+				if (r.status === 200) {
+					return r.data
+				}
+
+				throw new Error(`FAILED: Caught status in getProfileData() -2, ${r.status}`)
+			}).catch((err: any) => {
+				if (err.response) {
+					errorMessage = err.response.data.split(": ")[1]
+				}
+				console.warn("getProfileData() failed to obtain a response, will fail")
+			})
+
+		if (gameDataResponse) {
+			response.games = gameDataResponse
+
+			return {
+				success: true,
+				data: response
+			}
+		}
+
 		return {
-			success: true,
-			data: response
+			success: false,
+			message: "Unable to fetch lifetime game data"
 		}
 	} else {
 		console.log("FAILED", errorMessage)

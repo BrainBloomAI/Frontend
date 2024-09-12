@@ -234,7 +234,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 
 				recordingSession.end = (finalContents) => {
 					// end of recording
-					console.log("ENDED")
+					console.log("ENDED", finalContents)
 					setTypingContents(finalContents)
 
 					// end SRW session
@@ -463,7 +463,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 				<table className="w-full grow min-h-0 overflow-auto">
 					<tbody>
 						{
-							evalData && ["listening", "eq", "tone", "helpfulness", "clarity"].map((metric, i) => {
+							evalData ? ["listening", "eq", "tone", "helpfulness", "clarity"].map((metric, i) => {
 								let metricKey = metric as "listening"|"eq"|"tone"|"helpfulness"|"clarity"
 								return (
 									<tr key={i}>
@@ -488,7 +488,12 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 										</td>
 									</tr>
 								)
-							})
+							}) : (
+								<tr>
+									<td className="pt-4">Metrics</td>
+									<td className="pt-4">loading</td>
+								</tr>
+							)
 						}
 					</tbody>
 				</table>

@@ -1,15 +1,15 @@
 "use client"
 
-import { ProfileData } from "@/app/lib/definitions";
+import { ExtProfileData } from "@/app/lib/definitions";
 import {Dispatch, useState, SetStateAction, createContext } from "react";
-import TopbarComponent from "../components/topbar";
+import TopbarComponent from "@/app/components/topbar";
 
 export const ProfileDataContext = createContext<{
-  profileData?: ProfileData,
-  setProfileData?: Dispatch<SetStateAction<ProfileData>>
+  profileData: ExtProfileData,
+  setProfileData: Dispatch<SetStateAction<ExtProfileData>>
 }>({})
 
-export default function UserWrapper({ profileData, children }: { profileData: ProfileData, children: React.ReactNode }) {
+export default function UserWrapper({ profileData, children }: { profileData: ExtProfileData, children: React.ReactNode }) {
 	const [profileDataState, setProfileDataState] = useState(profileData)
 
 	return (

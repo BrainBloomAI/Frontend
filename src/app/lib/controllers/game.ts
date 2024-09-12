@@ -204,6 +204,39 @@ export class Game {
 		if (this.gameEnded === true) {
 			throw new GameEndedError(`Trying to invoke controller.respond, however this.gameEnded = ${this.gameEnded}`)
 		}
+		if (responseText.length === 0) {
+			// empty response
+
+			// build attempt
+			const attemptData = {
+				attemptID: "-", // placeholder ID since not important
+
+				dialogueId: "-",
+				attemptNumber: 1,
+
+				content: responseText,
+				successful: true,
+
+				timeTaken: 0,
+				timestamp: new Date().toISOString()
+			}
+
+			if (this.dialogueAttemptFailedEvent) {
+				this.dialogueAttemptFailedEvent({
+					dialogueID: "-", // placeholder ID since not important
+					by: SPEAKER_ID.User,
+
+					attemptsCount: 1,
+					successful: true,
+
+					createdTimestamp: new Date().toISOString(),
+					gameID: this.gameID!,
+
+					attempts: [attemptData]
+				}, attemptData, "Try speaking something.", this._currDialogueAttempts >= 2)
+			}
+			return 0
+		}
 
 		let timeTakenS = timeTaken /1000 // convert it to seconds
 

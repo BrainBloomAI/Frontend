@@ -34,8 +34,9 @@ export class SpeechRecognitionWrapper {
 
 		// speech recognition instantiate and setup
 		this.sr = new SpeechRecognition()
-		this.sr.continuous = true
+		this.sr.continuous = false
 		this.sr.interimResults = true
+		this.sr.lang = "en-US"
 
 		// set state
 		this.state = SRWState.Stop
@@ -44,14 +45,17 @@ export class SpeechRecognitionWrapper {
 		this.currentRecordingSession = {}
 
 		// attach events
-		this.sr.addEventListener("result", e => {
+		this.sr.onresult = e => {
 			let resultList = e.results
 			let singleResult = resultList[0] // at position 0
 			let optimalResult = singleResult[0] // first alternative
+			console.log("result", singleResult)
 
 			if (singleResult.isFinal) {
+				console.log("FINAL", this.currentRecordingSession)
 				// final one
 				if (this.currentRecordingSession.end) {
+					console.log("FIRING")
 					this.currentRecordingSession.end(optimalResult.transcript) // .stop() will cleanup session, finish session job first
 					this.stop()
 				}
@@ -60,22 +64,25 @@ export class SpeechRecognitionWrapper {
 					this.currentRecordingSession.updateContent(optimalResult.transcript)
 				}
 			}
-		})
+		}
 
 		this.sr.onerror = (e) => {
+			console.log("WHAT IS YOUR ERROR")
 			console.log(e.error)
 		}
 
 		this.sr.addEventListener("speechstart", e => {
+			console.log("INNER SPEECH START")
 			if (this.currentRecordingSession.start) {
 				this.currentRecordingSession.start()
 			}
 		})
 
 		this.sr.addEventListener("speechend", e => {
+			console.log("INNER SPEECH END")
 			if (this.currentRecordingSession.end) {
 				// has a recording session going on
-				this.stop()
+				// this.stop() // let onresult fire this.stop upon receiving a result with .isFinal set to true
 			}
 		})
 	}
@@ -102,6 +109,7 @@ export class SpeechRecognitionWrapper {
 	}
 
 	stop() {
+		console.log(this.state)
 		if (this.state === SRWState.Running) {
 			this.sr.stop() // stop SpeechRecognition object
 

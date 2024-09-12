@@ -4,17 +4,22 @@ import TopbarComponent from "@/app/components/topbar";
 
 import logo from "@/public/branding/logo.svg"
 import { GameData, ProfileData } from "@/app/lib/definitions"
-import { getProfileData } from "@/app/actions";
+import { getProfileData, isAuthenticated } from "@/app/actions";
 import Alerts from "@/app/lib/ui/alerts"
 import UserWrapper from "@/app/(user)/contextWrapper";
+import { redirect } from "next/navigation";
 
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  if (!await isAuthenticated()) {
+    return redirect("/login")
+  }
+
   const payload = await getProfileData()
-  let errorMessage = ""
+  let errorMessage: string|undefined;
   if (!payload.success) {
     errorMessage = "Failed to communicate with server"
   }

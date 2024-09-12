@@ -130,7 +130,7 @@ export type GameData = {
 	gameID: string,
 	startedTimestamp: string, // ISO format
 	pointsEarned?: number, // TODO: variable presence?
-	status: "ongoing" | "completed" | "failed", // Enum for status
+	status: "ongoing" | "complete" | "abandoned", // Enum for status
 	userID: string,
 	scenarioID: string,
 	dialogues?: Array<DialogueEntry>,
@@ -161,3 +161,5 @@ export type ProfileData = {
 	mindsAssessment?: number,
 	banned: boolean
 }
+
+export type ExtProfileData = ProfileData & { games: Array<GameData> }
