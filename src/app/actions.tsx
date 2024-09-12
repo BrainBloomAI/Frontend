@@ -111,6 +111,58 @@ export async function signup(state: FormState, formData: FormData) {
 	}
 }
 
+export async function staffSignup(state: FormState, formData: FormData) {
+	const validatedFields = SignupFormSchema.safeParse({
+		name: formData.get("name"),
+		email: formData.get("email"),
+		password: formData.get("password"),
+		confirmPassword: formData.get("confirmPassword")
+	})
+ 
+	if (!validatedFields.success) {
+		return {
+			errors: validatedFields.error.flatten().fieldErrors,
+		}
+	}
+
+	const { name, email, password } = validatedFields.data
+	let session = await getSession()
+	if (session == null) {
+		session = await createSession()
+	}
+
+	let errorMessage: string|null = null;
+	const authToken = await session.bridge.post("/identity/new", {
+		username: name,
+		email,
+		password,
+		role: "staff"
+	}).then((r: AxiosResponse) => {
+		if (r.status === 200) {
+			return r.data.slice(-10)
+		}
+
+		throw new Error(`FAILED: Uncaught response code, ${r.status}`)
+	}).catch((err: any) => { // TODO: FIX
+		if (err.status === 400) {
+			errorMessage = err.response.data
+		}
+		return
+	})
+
+	if (authToken) {
+		// managed to obtain authToken
+		await upgradeSession(authToken) // wait for session to upgrade before redirecting user to a privilege-required page
+
+		// redirect user
+		return redirect("/games")
+	} else {
+		return {
+			message: errorMessage ?? "Failed to communicate with server (2)"
+		}
+	}
+}
+
 export async function logout() {
 	/**
 	 * logouts of current session
