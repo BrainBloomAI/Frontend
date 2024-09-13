@@ -3,6 +3,7 @@ import "server-only"
 import { SignJWT, jwtVerify } from 'jose'
 import { cookies } from "next/headers"
 import axios, { AxiosInstance, AxiosResponse } from "axios"
+import config from "@/app/config"
 
 const SECRET_KEY = process.env.SECRET_KEY
 const encodedSecretKey = new TextEncoder().encode(SECRET_KEY)
@@ -23,8 +24,8 @@ type ExtSessionPayload = SessionPayload & {
 
 // TODO: move bridge logic to its own separate file
 const BRIDGE_CONFIG = {
-	baseURL: "http://localhost:8000",
-	authTokenHeaderKeyName: "authtoken",
+	baseURL: config.serverOrigin,
+	authTokenHeaderKeyName: config.authTokenHeaderKeyName
 }
 
 function createBridge(authToken?: string, _retrievedAt?: number, _authTokenValidDuration?: number) {

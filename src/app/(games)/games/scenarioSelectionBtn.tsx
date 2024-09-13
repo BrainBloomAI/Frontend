@@ -1,16 +1,16 @@
 "use client"
 
-import { ScenarioEntry } from "@/app/lib/definitions";
+import { ScenarioData } from "@/app/lib/definitions";
 import { createNewGame } from "@/app/actions"
 import { createContext, Dispatch, SetStateAction, useContext, useState } from "react";
 import Alerts from "@/app/lib/ui/alerts";
 import { useRouter } from "next/navigation";
 import { getSession } from "@/app/lib/sessionManager";
-import { GameTheme } from "@/app/(games)/games/config";
+import config from "@/app/config"
 
 const WindowScenario = createContext<{errorMessageState?: string, setErrorMessageState?: Dispatch<SetStateAction<string|undefined>>}>({})
 
-function ScenarioSelectionPanel({ scenarioList }: { scenarioList: Array<ScenarioEntry> }) {
+function ScenarioSelectionPanel({ scenarioList }: { scenarioList: Array<ScenarioData> }) {
 	let { setErrorMessageState } = useContext(WindowScenario)
 	let [clickDebounce, setClickDebounce] = useState(true)
 
@@ -22,7 +22,7 @@ function ScenarioSelectionPanel({ scenarioList }: { scenarioList: Array<Scenario
 				<button
 					key={i}
 					className="bg-cover bg-center w-full aspect-square rounded border border-solid border-black bg-accent flex flex-col justify-end p-2"
-					style={{backgroundImage: `url(${GameTheme.serverOrigin}cdn/${scenario.backgroundImage})`}}
+					style={{backgroundImage: `url(${config.serverOrigin}cdn/${scenario.backgroundImage})`}}
 					onClick={
 						async() => {
 							// check debounce
@@ -53,7 +53,7 @@ function ScenarioSelectionPanel({ scenarioList }: { scenarioList: Array<Scenario
 	)
 }
 
-export default function ScenarioSelectionWindow({ scenarioList, errorMessage }: { scenarioList: Array<ScenarioEntry>, errorMessage?: string }) {
+export default function ScenarioSelectionWindow({ scenarioList, errorMessage }: { scenarioList: Array<ScenarioData>, errorMessage?: string }) {
 	const [errorMessageState, setErrorMessageState] = useState(errorMessage)
 
 	return (
