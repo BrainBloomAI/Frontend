@@ -1,14 +1,90 @@
 "use server"
 
-import { LoginFormSchema, SignupFormSchema, FormState, ScenarioEntry, ProfileData, ExtProfileData } from "@/app/lib/definitions"
+import { OnboardFormSchema, LoginFormSchema, SignupFormSchema, FormState, ProfileData, ExtProfileData, ScenarioFormSchema, ScenarioData } from "@/app/lib/definitions"
 import { createSession, getSession } from "@/app/lib/sessionManager"
 import { downgradeSession, upgradeSession } from "@/app/lib/dataAccessLayer"
-import { redirect } from "next/navigation"
+import { redirect, RedirectType } from "next/navigation"
 
 import { GameData } from "@/app/lib/definitions"
 import { AxiosRequestConfig, AxiosResponse } from "axios"
 import { Game } from "./lib/controllers/game"
 import { Console } from "console"
+import { reportWebVitals } from "next/dist/build/templates/pages"
+
+export async function updateMindsEvaluation(state: FormState, formData: FormData) {
+	const validatedFields = OnboardFormSchema.safeParse({
+		listening: formData.get("listening"),
+		eq: formData.get("eq"),
+		tone: formData.get("tone"),
+		helpfulness: formData.get("helpfulness"),
+		clarity: formData.get("clarity"),
+		assessment: formData.get("assessment"),
+	})
+
+	if (!validatedFields.success) {
+		return {
+			errors: validatedFields.error.flatten().fieldErrors,
+		}
+	}
+
+	const { listening, eq, tone, helpfulness, clarity, assessment } = validatedFields.data
+	console.log("GET OB", listening, eq, tone, helpfulness)
+
+	let session = await getSession()
+	if (!session || session.authenticated === false) {
+		// not authenticated
+		return {
+			success: false,
+			message: "Not authenticated"
+		}
+	}
+
+	const clientID = formData.get("clientIDLookup")
+
+	// get targetUsername from userId
+	let clientData: ProfileData|undefined = await session.bridge.get(`/staff/view/${clientID}`)
+		.then(r => {
+			return r.data
+		}).catch((err: any) => {
+			return
+		})
+
+	if (clientData == null) {
+		return {
+			success: false,
+			message: "Failed to lookup clientID"
+		}
+	}
+
+	let errorMessage: string | null = null;
+	const response = await session.bridge
+		.post("/staff/updateMindsEvaluation", {
+			targetUsername: clientData.username, listening, eq, tone, helpfulness, clarity, assessment
+		})
+		.then((r) => {
+			if (r.status === 200) {
+				return r.data;
+			}
+
+			throw new Error("updateMindsEvaluation() caught response")
+		})
+		.catch((err) => {
+			if (err.status === 400) {
+				errorMessage = "Invalid data provided";
+			}
+			return;
+		});
+
+	if (response) {
+		// Successful update, handle redirection or success feedback
+		return redirect(`/clients/view/${clientID}`)
+	} else {
+		// Failed update, handle errors
+		return {
+			message: errorMessage ?? "Failed to communicate with server (11)"
+		}
+	}
+}
 
 export async function login(state: FormState, formData: FormData) {
 	const validatedFields = LoginFormSchema.safeParse({
@@ -51,7 +127,7 @@ export async function login(state: FormState, formData: FormData) {
 		console.log("UPGRADED SESSION", session, await getSession())
 
 		// redirect user
-		return redirect("/games")
+		return redirect("/")
 	} else {
 		return {
 			message: errorMessage ?? "Failed to communicate with server (1)"
@@ -223,6 +299,35 @@ export async function isAuthenticated() {
 	return session && session.authenticated
 }
 
+export async function isStaff() {
+	let session = await getSession()
+	if (!session || session.authenticated === false) {
+		// not authenticated
+		return {
+			success: false,
+			message: "Not authenticated"
+		}
+	}
+
+	let errorMessage: string|undefined;
+	const response: ProfileData = await session.bridge.get("/identity")
+		.then((r: AxiosResponse & { data: ProfileData }) => {
+			if (r.status === 200) {
+				return r.data
+			}
+
+			throw new Error(`FAILED: Caught status in isStaff(), ${r.status}`)
+		}).catch((err: any) => { // TODO: err is Erroobject and r.status
+			// server failed to respond
+			if (err.response) {
+				errorMessage = err.response.data.split(": ")[1]
+			}
+			console.warn("isStaff() failed to obtain a response, will fail")
+		})
+
+	return response && response.role === "staff"
+}
+
 
 export async function getScenarioList() {
 	let session = await getSession()
@@ -232,42 +337,8 @@ export async function getScenarioList() {
 		return
 	}
 
-	const scenarioList: Array<ScenarioEntry>|undefined = await session.bridge.get("/game/scenarios").then(async r => {
+	const scenarioList: Array<ScenarioData>|undefined = await session.bridge.get("/game/scenarios").then(async r => {
 		if (r.status === 200) {
-			// const updatedEntries = await Promise.all(
-			// 	r.data.map(async (entry: ScenarioEntry) => {
-			// 		// convert backgroundImage to blob
-			// 		console.log("fetching", `${session.bridge.defaults.baseURL}/public/img/${entry.backgroundImage}`)
-			// 		entry.backgroundImage = await fetch(`${session.bridge.defaults.baseURL}/public/img/${entry.backgroundImage}`)
-			// 			.then(r => {
-			// 				console.log("r.status", r.status)
-			// 				if (r.status === 200) {
-			// 					return r.blob()
-			// 				}
-
-			// 				return Promise.reject(r.status)
-			// 			}).then(blob => {
-			// 				return new Promise((res: (dataURL: string) => void, rej) => {
-			// 					const reader = new FileReader()
-			// 					reader.onload = _ => {
-			// 						res(reader.result as string)
-			// 					}
-			// 					reader.onerror = err => {
-			// 						rej(reader.error)
-			// 					}
-
-			// 					reader.readAsDataURL(blob)
-			// 				})
-			// 			}).catch(err => {
-			// 				console.log("rejected")
-			// 				return "https://cdn-icons-png.flaticon.com/512/3593/3593455.png" // default placeholder
-			// 			})
-
-			// 		console.log(`updated: ${entry.backgroundImage}`)
-			// 		return entry
-			// 	})
-			// )
-
 			console.log("returned")
 			return r.data
 		}
@@ -606,25 +677,7 @@ export async function getProfileData() {
 	}
 }
 
-export async function updateMindsEvaluation(state: any, formData: any) {
-	// Validate the fields, assuming the necessary validation schema is set up.
-	const validatedFields = {
-		targetUsername: formData.get("targetUsername"),
-		listening: parseFloat(formData.get("listening")) || 0,
-		eq: parseFloat(formData.get("eq")) || 0,
-		tone: parseFloat(formData.get("tone")) || 0,
-		helpfulness: parseFloat(formData.get("helpfulness")) || 0,
-		clarity: parseFloat(formData.get("clarity")) || 0,
-		assessment: formData.get("assessment"),
-	}
-
-	if (!validatedFields.targetUsername || !validatedFields.assessment) {
-		// Return errors if required fields are missing
-		return {
-			errors: { general: "All fields are required!" },
-		}
-	}
-
+export async function getAllClients() {
 	let session = await getSession()
 	if (!session || session.authenticated === false) {
 		// not authenticated
@@ -634,38 +687,181 @@ export async function updateMindsEvaluation(state: any, formData: any) {
 		}
 	}
 
-	let errorMessage: string | null = null;
-
-	// Post request to update the evaluation
-	const response = await session.bridge
-		.post("/staff/updateMindsEvaluation", {
-			targetUsername: validatedFields.targetUsername,
-			listening: validatedFields.listening,
-			eq: validatedFields.eq,
-			tone: validatedFields.tone,
-			helpfulness: validatedFields.helpfulness,
-			clarity: validatedFields.clarity,
-			assessment: validatedFields.assessment,
-		})
-		.then((r) => {
+	let errorMessage: string|undefined;
+	const response: Array<ProfileData> = await session.bridge.get("/staff/viewClients")
+		.then((r: AxiosResponse & { data: Array<ProfileData> }) => {
 			if (r.status === 200) {
-				return r.data;
-			} else {
-				return Promise.reject(r.status);
+				return r.data
 			}
+
+			throw new Error(`FAILED: Caught status in getAllClients(), ${r.status}`)
+		}).catch((err: any) => { // TODO: err is Erroobject and r.status
+			// server failed to respond
+			if (err.response) {
+				errorMessage = err.response.data.split(": ")[1]
+			}
+			console.warn("getAllClients() failed to obtain a response, will fail")
 		})
-		.catch((err) => {
-			if (err.status === 400) {
-				errorMessage = "Invalid data provided";
-			}
-			return;
-		});
 
 	if (response) {
-		// Successful update, handle redirection or success feedback
-		return { message: "Evaluation successfully updated!" };
+		return {
+			success: true,
+			data: response
+		}
 	} else {
-		// Failed update, handle errors
-		return { message: errorMessage || "Failed to update evaluation" };
+		console.log("FAILED", errorMessage)
+		return {
+			success: false,
+			message: errorMessage ?? "Failed to communicate with server (22)"
+		}
+	}
+}
+
+export async function getClientData(clientID: string) {
+	let session = await getSession()
+	if (!session || session.authenticated === false) {
+		// not authenticated
+		return {
+			success: false,
+			message: "Not authenticated"
+		}
+	}
+
+	let errorMessage: string|undefined;
+	const response: ExtProfileData = await session.bridge.get(`/staff/view/${clientID}`)
+		.then((r: AxiosResponse & { data: ProfileData }) => {
+			if (r.status === 200) {
+				return r.data
+			}
+
+			throw new Error(`FAILED: Caught status in getClientData(), ${r.status}`)
+		}).catch((err: any) => { // TODO: err is Erroobject and r.status
+			// server failed to respond
+			if (err.response) {
+				errorMessage = err.response.data.split(": ")[1]
+			}
+			console.warn("getClientData() failed to obtain a response, will fail", err)
+		})
+
+	if (response) {
+		const gameDataResponse: Array<GameData> = await session.bridge.get("/game", { params: { targetUsername: response.username, includeScenario: true, includeEvaluation: true }})
+			.then((r: AxiosResponse & { data: Array<GameData> }) => {
+				if (r.status === 200) {
+					return r.data
+				}
+
+				throw new Error(`FAILED: Caught status in getClientData() -2, ${r.status}`)
+			}).catch((err: any) => {
+				if (err.response) {
+					errorMessage = err.response.data.split(": ")[1]
+				}
+				console.warn("getClientData() failed to obtain a response, will fail")
+			})
+
+		if (gameDataResponse) {
+			response.games = gameDataResponse
+
+			return {
+				success: true,
+				data: response
+			}
+		}
+
+		return {
+			success: false,
+			message: "Unable to fetch lifetime game data"
+		}
+	} else {
+		console.log("FAILED", errorMessage)
+		return {
+			success: false,
+			message: errorMessage ?? "Failed to communicate with server (6)"
+		}
+	}
+}
+
+export async function createNewScenario(state: FormState, formData: FormData) {
+	const validatedFields = ScenarioFormSchema.safeParse({
+		name: formData.get("name"),
+		description: formData.get("description"),
+		modelRole: formData.get("modelRole"),
+		userRole: formData.get("userRole"),
+	})
+ 
+	if (!validatedFields.success) {
+		return {
+			errors: validatedFields.error.flatten().fieldErrors,
+		}
+	}
+
+	let session = await getSession()
+	if (session == null) {
+		session = await createSession()
+	}
+
+	let errorMessage: string|null = null;
+	console.log("SENDING", formData, typeof formData)
+	const createdScenario = await session.bridge.post("/scenario/new", formData, {
+		headers: { "Content-Type": "multipart/form-data" }
+	}).then((r: AxiosResponse) => {
+		if (r.status === 200) {
+			return r.data
+		}
+
+		throw new Error(`FAILED: Uncaught response code, ${r.status}`)
+	}).catch((err: any) => {
+		if (err.status === 404 || err.status === 401) {
+			errorMessage = err.response.data
+		}
+		return
+	})
+
+	console.log("RETURNED", createdScenario)
+	if (createdScenario && createdScenario.newScenario) {
+		// redirect user
+		return redirect("/scenarios")
+	} else {
+		return {
+			message: errorMessage ?? "Failed to communicate with server (14)"
+		}
+	}
+}
+
+export async function deleteScenario(scenarioID: string) {
+	let session = await getSession()
+	if (!session || session.authenticated === false) {
+		// not authenticated
+		return {
+			success: false,
+			message: "Not authenticated"
+		}
+	}
+
+	let errorMessage: string|null = null;
+	const deletedScenario = await session.bridge.post("/scenario/delete", { scenarioID })
+		.then((r: AxiosResponse) => {
+			if (r.status === 200) {
+				return true
+			}
+
+			throw new Error(`FAILED: Uncaught response code, ${r.status}`)
+		}).catch((err: any) => {
+			if (err.status === 404 || err.status === 401) {
+				errorMessage = err.response.data
+			}
+
+			console.log(err)
+			return false
+		})
+
+	console.log("RETURNED", deletedScenario)
+	if (deletedScenario) {
+		// redirect user
+		return redirect("/scenarios")
+	} else {
+		console.log(errorMessage)
+		return {
+			message: errorMessage ?? "Failed to communicate with server (14)"
+		}
 	}
 }

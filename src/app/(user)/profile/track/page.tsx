@@ -1,7 +1,7 @@
 "use client"
 
 import { useContext } from "react"
-import { ProfileDataContext } from "@/app/(user)/contextWrapper"
+import { ProfileDataContext } from "@/app/lib/ui/contextWrapper"
 
 const GAME_STATUS_COLOR = {
 	"ongoing": "#ff8f38",

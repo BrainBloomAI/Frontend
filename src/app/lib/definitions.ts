@@ -1,5 +1,21 @@
 import { z } from "zod"
 
+export const OnboardFormSchema = z.object({
+	listening: z.coerce.number().finite().gte(0).lte(100),
+	eq: z.coerce.number().finite().gte(0).lte(100),
+	tone: z.coerce.number().finite().gte(0).lte(100),
+	helpfulness: z.coerce.number().finite().gte(0).lte(100),
+	clarity: z.coerce.number().finite().gte(0).lte(100),
+	assessment: z.coerce.string().trim()
+})
+
+export const ScenarioFormSchema = z.object({
+	name: z.string().min(2, { message: "Name must be at least 2 characters long." }).trim(),
+	description: z.string().min(2, { message: "Description must be at least 2 characters long." }).trim(),
+	modelRole: z.string().min(2, { message: "Model role must be at least 2 characters long." }).trim(),
+	userRole: z.string().min(2, { message: "User role must be at least 2 characters long." }).trim()
+})
+
 export const LoginFormSchema = z.object({
 	name: z
 		.string()
@@ -57,16 +73,6 @@ export type FormState =
 /**
  * FOR GAMES
  */
-export type ScenarioEntry = {
-	scenarioID: string;
-	name: string;
-	backgroundImage: string;
-	description: string;
-	created: string;   // ISO date string
-	createdAt: string; // ISO date string
-	updatedAt: string; // ISO date string
-}
-
 export enum SPEAKER_ID {
 	System = "system", // scenario computer reponse
 	User = "user" // PWIDs

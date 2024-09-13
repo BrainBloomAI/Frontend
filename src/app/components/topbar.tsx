@@ -1,5 +1,5 @@
 import logo from "@/public/branding/logo.svg"
-import { ProfileDataContext } from "@/app/(user)/contextWrapper"
+import { ProfileDataContext } from "@/app/lib/ui/contextWrapper"
 import { useContext } from "react"
 
 export default function TopbarComponent() {
@@ -10,7 +10,7 @@ export default function TopbarComponent() {
 			<a href="/" className="basis-16 min-w-0">
 				<img src={logo.src} className="basis-16 grow-0 shrink-1" />
 			</a>
-			<a href="/account" className="font-bold">{profileData.username}</a>
+			<a href="/profile" className="font-bold">{profileData.username}</a>
 		</div>
 	)
 }

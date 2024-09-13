@@ -1,7 +1,7 @@
 "use client"
 
 import { useContext } from "react"
-import { ProfileDataContext } from "@/app/(user)/contextWrapper"
+import { ProfileDataContext } from "@/app/lib/ui/contextWrapper"
 
 export default function AccountPage() {
 	const { profileData } = useContext(ProfileDataContext)

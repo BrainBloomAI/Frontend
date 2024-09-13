@@ -1,7 +1,7 @@
 "use client"
 
 import { useContext } from "react"
-import { ProfileDataContext } from "@/app/(user)/contextWrapper"
+import { ProfileDataContext } from "@/app/lib/ui/contextWrapper"
 import { StaticImageData } from "next/image"
 
 import badge_1 from "@/public/badges/1.png"
