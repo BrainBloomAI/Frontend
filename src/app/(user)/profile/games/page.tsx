@@ -14,7 +14,7 @@ export default function AccountPage() {
 				<a href="/profile" className="text-2xl font-bold">&lt;</a>
 				<h1 className="text-2xl pb-4 font-bold text-black">My games</h1>
 			</div>
-			<GameCardContainer gameDataArray={profileData.games} />
+			{ profileData ? <GameCardContainer gameDataArray={profileData.games} /> : <p className="font-bold text-4xl">No games played</p> }
 		</div>
 	)
 }

@@ -5,8 +5,8 @@ import {Dispatch, useState, SetStateAction, createContext } from "react";
 import TopbarComponent from "@/app/components/topbar";
 
 export const ProfileDataContext = createContext<{
-  profileData: ExtProfileData,
-  setProfileData: Dispatch<SetStateAction<ExtProfileData>>
+  profileData?: ExtProfileData,
+  setProfileData?: Dispatch<SetStateAction<ExtProfileData>>
 }>({})
 
 export default function UserWrapper({ profileData, children }: { profileData: ExtProfileData, children: React.ReactNode }) {

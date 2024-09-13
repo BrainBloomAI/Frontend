@@ -6,8 +6,6 @@ import { ProfileDataContext } from "@/app/lib/ui/contextWrapper"
 export default function AccountPage() {
 	const { profileData } = useContext(ProfileDataContext)
 
-	console.log(profileData)
-
 	return (
 		<div className="p-8 flex flex-col items-center h-svh">
 			<div id="headshot" className="rounded-full w-[80%] aspect-square border-2 border-black border-solid overflow-clip">

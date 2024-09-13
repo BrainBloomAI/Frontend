@@ -1,6 +1,6 @@
 "use server"
 
-import { OnboardFormSchema, LoginFormSchema, SignupFormSchema, FormState, ProfileData, ExtProfileData, ScenarioFormSchema, ScenarioData } from "@/app/lib/definitions"
+import { OnboardFormSchema, LoginFormSchema, SignupFormSchema, LoginFormState, SignupFormState, MindsEvalFormState, ScenarioFormState, ProfileData, ExtProfileData, ScenarioFormSchema, ScenarioData } from "@/app/lib/definitions"
 import { createSession, getSession } from "@/app/lib/sessionManager"
 import { downgradeSession, upgradeSession } from "@/app/lib/dataAccessLayer"
 import { redirect, RedirectType } from "next/navigation"
@@ -11,7 +11,7 @@ import { Game } from "./lib/controllers/game"
 import { Console } from "console"
 import { reportWebVitals } from "next/dist/build/templates/pages"
 
-export async function updateMindsEvaluation(state: FormState, formData: FormData) {
+export async function updateMindsEvaluation(state: MindsEvalFormState, formData: FormData) {
 	const validatedFields = OnboardFormSchema.safeParse({
 		listening: formData.get("listening"),
 		eq: formData.get("eq"),
@@ -28,13 +28,11 @@ export async function updateMindsEvaluation(state: FormState, formData: FormData
 	}
 
 	const { listening, eq, tone, helpfulness, clarity, assessment } = validatedFields.data
-	console.log("GET OB", listening, eq, tone, helpfulness)
 
 	let session = await getSession()
 	if (!session || session.authenticated === false) {
 		// not authenticated
 		return {
-			success: false,
 			message: "Not authenticated"
 		}
 	}
@@ -51,7 +49,6 @@ export async function updateMindsEvaluation(state: FormState, formData: FormData
 
 	if (clientData == null) {
 		return {
-			success: false,
 			message: "Failed to lookup clientID"
 		}
 	}
@@ -77,7 +74,7 @@ export async function updateMindsEvaluation(state: FormState, formData: FormData
 
 	if (response) {
 		// Successful update, handle redirection or success feedback
-		return redirect(`/clients/view/${clientID}`)
+		redirect(`/clients/view/${clientID}`)
 	} else {
 		// Failed update, handle errors
 		return {
@@ -86,7 +83,7 @@ export async function updateMindsEvaluation(state: FormState, formData: FormData
 	}
 }
 
-export async function login(state: FormState, formData: FormData) {
+export async function login(state: LoginFormState, formData: FormData) {
 	const validatedFields = LoginFormSchema.safeParse({
 		name: formData.get("name"),
 		password: formData.get("password"),
@@ -135,7 +132,7 @@ export async function login(state: FormState, formData: FormData) {
 	}
 }
 
-export async function signup(state: FormState, formData: FormData) {
+export async function signup(state: SignupFormState, formData: FormData) {
 	const validatedFields = SignupFormSchema.safeParse({
 		name: formData.get("name"),
 		email: formData.get("email"),
@@ -187,7 +184,7 @@ export async function signup(state: FormState, formData: FormData) {
 	}
 }
 
-export async function staffSignup(state: FormState, formData: FormData) {
+export async function staffSignup(state: SignupFormState, formData: FormData) {
 	const validatedFields = SignupFormSchema.safeParse({
 		name: formData.get("name"),
 		email: formData.get("email"),
@@ -505,7 +502,6 @@ export async function getAllGameData() {
 		}
 	}
 
-	console.log("\n\n\n\n\tFETCHING:", gameID)
 	let errorMessage: string|undefined;
 	let params = {
 		includeEvaluation: true
@@ -777,7 +773,7 @@ export async function getClientData(clientID: string) {
 	}
 }
 
-export async function createNewScenario(state: FormState, formData: FormData) {
+export async function createNewScenario(state: ScenarioFormState, formData: FormData) {
 	const validatedFields = ScenarioFormSchema.safeParse({
 		name: formData.get("name"),
 		description: formData.get("description"),

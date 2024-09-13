@@ -11,7 +11,6 @@ const GAME_STATUS_COLOR = {
 
 export default function AccountPage() {
 	const { profileData } = useContext(ProfileDataContext)
-	console.log(profileData)
 
 	return (
 		<div className="p-8 flex flex-col h-svh">
@@ -20,7 +19,7 @@ export default function AccountPage() {
 				<h1 className="text-2xl pb-4 font-bold text-black">My progress</h1>
 			</div>				
 			{
-				profileData.mindsAssessment ?
+				profileData?.mindsAssessment ?
 					(<><table className="w-full min-h-0 overflow-auto">
 						<tbody>
 							{

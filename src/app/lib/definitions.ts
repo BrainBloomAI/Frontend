@@ -59,12 +59,49 @@ export const SignupFormSchema = z.object({
 	}
 });
  
-export type FormState =
+export type LoginFormState =
+	| {
+			errors?: {
+				name?: string[]
+				password?: string[]
+			}
+			message?: string
+		}
+	| undefined
+
+export type SignupFormState =
 	| {
 			errors?: {
 				name?: string[]
 				email?: string[]
 				password?: string[]
+				confirmPassword?: string[]
+			}
+			message?: string
+		}
+	| undefined
+
+export type MindsEvalFormState =
+	| {
+			errors?: {
+				listening?: string[]
+				eq?: string[]
+				tone?: string[]
+				helpfulness?: string[]
+				clarity?: string[]
+				assessment?: string[]
+			}
+			message?: string
+		}
+	| undefined
+
+export type ScenarioFormState =
+	| {
+			errors?: {
+				name?: string[]
+				description?: string[]
+				modelRole?: string[]
+				userRole?: string[]
 			}
 			message?: string
 		}

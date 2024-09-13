@@ -1,7 +1,7 @@
 "use client";
 import { useFormState } from "react-dom"
 import { useState } from "react";
-import { getClientData, updateMindsEvaluation } from "@/app/actions";
+import { updateMindsEvaluation } from "@/app/actions";
 import Alerts from "@/app/lib/ui/alerts";
 
 export default function OnboardPage({ params }: { params: { clientID: string }}) {
@@ -196,6 +196,5 @@ export default function OnboardPage({ params }: { params: { clientID: string }})
           Submit
         </button>
       </form>
-      {state?.errors && <p>{state.errors.listening}</p>}
     </div>)
 }
