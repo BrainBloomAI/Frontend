@@ -20,7 +20,9 @@ Configuration for frontend
 	- `.background`: (string) hexadecimal color code for the background of the game page
 	- `.responseIndicator`: (string[]) hexadecimal color codes for the response indicators mapped to `[OKAY, NOT OKAY]`, modifies the color of the response text as indicators
 
-
+## .env.local
+Only one variable is used to maintain sessions
+- `SECRET_KEY`: (string) 32 byte base64 encoded key
 
 # Dependencies
 - [`next.js`](https://nextjs.org/): web framework with React
