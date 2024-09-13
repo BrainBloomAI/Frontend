@@ -38,7 +38,6 @@ export default function AccountPage() {
 																backgroundColor: "rgb(0 255 0)",
 																width: `${profileData[`minds${metricKey}`]}%`,
 																animationName: "grow-in",
-																animationDelay: "1500ms",
 																animationDuration: "2s",
 																animationFillMode: "forwards",
 																animationTimingFunction: "ease-out"

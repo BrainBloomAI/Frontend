@@ -4,7 +4,7 @@ import TopbarComponent from "@/app/components/topbar";
 
 import logo from "@/public/branding/logo.svg"
 import { GameData, ProfileData } from "@/app/lib/definitions"
-import { getProfileData, isAuthenticated } from "@/app/actions";
+import { getProfileData, isStaff } from "@/app/actions";
 import Alerts from "@/app/lib/ui/alerts"
 import UserWrapper from "@/app/lib/ui/contextWrapper";
 import { redirect } from "next/navigation";
@@ -14,8 +14,8 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  if (!await isAuthenticated()) {
-    return redirect("/login")
+  if (!await isStaff()) {
+    return redirect("/")
   }
 
   const payload = await getProfileData()

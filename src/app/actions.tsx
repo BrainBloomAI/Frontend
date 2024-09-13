@@ -303,10 +303,7 @@ export async function isStaff() {
 	let session = await getSession()
 	if (!session || session.authenticated === false) {
 		// not authenticated
-		return {
-			success: false,
-			message: "Not authenticated"
-		}
+		return false
 	}
 
 	let errorMessage: string|undefined;

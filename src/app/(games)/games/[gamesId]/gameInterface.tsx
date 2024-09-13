@@ -19,7 +19,7 @@ const activeDialogueOutOfFocus = "font-bold text-xl text-slate-200"
 
 const NBSP = " " // non-breaking space for empty lines
 
-const typeText = async (text: string, containerRef: RefObject<HTMLDivElement>, typingContentState: Dispatch<SetStateAction<string>>) => {
+const typeText = async (text: string, containerRef: RefObject<HTMLDivElement>, typingContentState: Dispatch<SetStateAction<string>>, emitSound: boolean = true) => {
 	if (!containerRef.current) {
 		return
 	}
@@ -34,29 +34,31 @@ const typeText = async (text: string, containerRef: RefObject<HTMLDivElement>, t
 	// resolve promise when typing actions AND speech synthesis speaking are done
 	return new Promise((resolve: (value?: undefined) => void) => {
 		let pendingTyping = true
-		let pendingSpeaking = false // only set to true if utterance managed to speak
+		let pendingSpeaking = !emitSound // only set to true if utterance managed to speak
 
 		// speak
-		if (synth.speaking) {
-			synth.cancel()
-		}
-		console.log(synth.speaking)
-		let utterance = new SpeechSynthesisUtterance(text);
-
-		utterance.addEventListener("error", e => {
-			console.log("ERROR", e)
-		})
-		utterance.addEventListener("start", e => {
-			pendingSpeaking = true
-		})
-		utterance.addEventListener("end", e => {
-			pendingSpeaking = false
-			if (!pendingTyping) {
-				// typing is done too
-				resolve()
+		if (emitSound) {
+			if (synth.speaking) {
+				synth.cancel()
 			}
-		})
-		synth.speak(utterance)
+			console.log(synth.speaking)
+			let utterance = new SpeechSynthesisUtterance(text);
+
+			utterance.addEventListener("error", e => {
+				console.log("ERROR", e)
+			})
+			utterance.addEventListener("start", e => {
+				pendingSpeaking = true
+			})
+			utterance.addEventListener("end", e => {
+				pendingSpeaking = false
+				if (!pendingTyping) {
+					// typing is done too
+					resolve()
+				}
+			})
+			synth.speak(utterance)
+		}
 
 		// type
 		let charPointer = 0
@@ -348,7 +350,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 					// switch speaker
 					speakerIndicatorRef.current.classList.toggle("a", true) // system is speaking
 					speakerIndicatorRef.current.classList.toggle("b", false)
-					await typeText("..........", speakerIndicatorRef, setTypingContents)
+					await typeText("..........", speakerIndicatorRef, setTypingContents, false)
 				}
 			}
 
