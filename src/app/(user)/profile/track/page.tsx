@@ -21,15 +21,15 @@ export default function AccountPage() {
 			</div>				
 			{
 				profileData.mindsAssessment ?
-					(<table className="w-full grow min-h-0 overflow-auto">
+					(<><table className="w-full min-h-0 overflow-auto">
 						<tbody>
 							{
 								["Listening", "EQ", "Tone", "Helpfulness", "Clarity"].map((metric, i) => {
 									let metricKey = metric as "Listening"|"EQ"|"Tone"|"Helpfulness"|"Clarity"
 									return (
 										<tr key={i}>
-											<td className="pb-4 pr-4 align-bottom">{metric}</td>
-											<td className="pb-4 w-full">
+											<td className="pb-2 pr-4 align-bottom">{metric}</td>
+											<td className="pb-2 w-full">
 												<div className="flex flex-col gap-2">
 													<p className="self-end">{profileData[`minds${metricKey}`]}</p>
 													<div className="relative w-full h-4 rounded bg-slate-500 border border-slate-300 border-solid">
@@ -52,7 +52,10 @@ export default function AccountPage() {
 								})
 							}
 						</tbody>
-					</table>) :
+					</table>
+					<p className="font-bold text-xl pt-4">Assessment</p>
+					<p className="grow">{profileData.mindsAssessment}</p>
+					</>) :
 					(
 						<div className="py-8">
 							<p className="text-4xl font-bold">Pending evaluation from MINDS Staff</p>

@@ -19,6 +19,7 @@ export function GameCardContainer({ gameDataArray }: { gameDataArray: Array<Game
 							</div>
 							<div className="flex flex-row gap-2 mt-4">
 								<div className="grow flex flex-col">
+									<p className="pb-4">{gameData.evaluation?.simpleDescription}</p>
 									<p>{new Date(gameData.startedTimestamp).toLocaleString("en-SG")}</p>
 									<p className="text-sm text-[#555555]">#{gameData.gameID}</p>
 								</div>
