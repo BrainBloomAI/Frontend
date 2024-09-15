@@ -1,6 +1,6 @@
 import { ExtProfileData } from "@/app/lib/definitions";
 
-export function StatsContainer({ clientData, showOnboardBtn=false }: { clientData: ExtProfileData, showOnboardBtn: boolean }) {
+export function StatsContainer({ clientData, showOnboardBtn=false }: { clientData: ExtProfileData, showOnboardBtn?: boolean }) {
 	return 	clientData?.mindsAssessment ?
 		(<><table className="w-full min-h-0 overflow-auto">
 			<tbody>
