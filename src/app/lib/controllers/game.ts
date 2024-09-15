@@ -39,7 +39,7 @@ export class Game {
 
 	dialogueNextEvent?: (dialogueEntry: DialogueEntry, hasNextDialogue: boolean) => void|Promise<void> // fired whenever new dialogue appears
 	dialogueAttemptNextEvent?: (dialogueEntry: DialogueEntry, attemptEntry: AttemptEntry, hasNextDialogue: boolean) => void|Promise<void> // fired whenever new attempt appears (first attempt fires immediately right after dialogue gets created)
-	dialogueAttemptFailedEvent?: (DialogueEntry: DialogueEntry, attemptEntry: AttemptEntry, suggestedResponse: string, showSuggestedResponse: boolean) => void|Promise<void> // fired when user made an attempt but not accurate (never fired on playthroughs)
+	dialogueAttemptFailedEvent?: (DialogueEntry: DialogueEntry, attemptEntry: AttemptEntry, suggestedResponse: string, showSuggestedResponse: boolean, typeResponse: boolean) => void|Promise<void> // fired when user made an attempt but not accurate (never fired on playthroughs)
 
 	gameEndEvent?: (addedScore: number) => void // fired when game ended (will be fired for playthroughs too)
 	gameEvalEvent?: (evaluation?: EvaluationData) => void // fired after game ended and evaluation metrics are available (will be fired for playthroughs too, immediately)
@@ -107,6 +107,7 @@ export class Game {
 
 		const showEndScreen = this.gameEnded
 		for (let i = 0; i < this.dialogues!.length; i++) {
+			console.log("loading", i)
 			await this._loadNext()
 		}
 
@@ -142,9 +143,23 @@ export class Game {
 		if (this.dialogueAttemptNextEvent) {
 			if (hasNextDialogue) {
 				// is a playthrough, only pass in successful attempt
-				await this.dialogueAttemptNextEvent(dialogueData, dialogueData.attempts[dialogueData.attemptsCount -1], hasNextDialogue)
+				let successfulIdx = 0 // find index of successful attempt within dialogueData.attempts
+				for (let i = 0; i < dialogueData.attempts.length; i++) {
+					if (dialogueData.attempts[i].successful === true) {
+						successfulIdx = i
+						break
+					}
+				}
+				await this.dialogueAttemptNextEvent(dialogueData, dialogueData.attempts[successfulIdx], hasNextDialogue)
+				console.log("RETURNED")
 			} else {
-				await this.dialogueAttemptNextEvent(dialogueData, dialogueData.attempts[0], hasNextDialogue)
+				if (!dialogueData.successful) {
+					if (this.dialogueAttemptFailedEvent) {
+						await this.dialogueAttemptFailedEvent(dialogueData, dialogueData.attempts[dialogueData.attemptsCount -1], "", false, true) // no suggested text
+					}
+				} else {
+					await this.dialogueAttemptNextEvent(dialogueData, dialogueData.attempts[0], hasNextDialogue)
+				}
 			}
 		}
 	}
@@ -233,7 +248,7 @@ export class Game {
 					gameID: this.gameID!,
 
 					attempts: [attemptData]
-				}, attemptData, "Try speaking something.", this._currDialogueAttempts >= 2)
+				}, attemptData, "Try speaking something.", this._currDialogueAttempts >= 2, false) // last arg: no need type contents as content has been updated by speech
 			}
 			return 0
 		}
@@ -333,7 +348,7 @@ export class Game {
 					gameID: this.gameID!,
 
 					attempts: [attemptData]
-				}, attemptData, responseData.suggestedAIResponse, this._currDialogueAttempts >= 2)
+				}, attemptData, responseData.suggestedAIResponse, this._currDialogueAttempts >= 2, false)
 			}
 		} else {
 			if ("pointsEarned" in responseData) {

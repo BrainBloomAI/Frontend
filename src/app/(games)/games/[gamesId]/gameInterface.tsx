@@ -34,17 +34,18 @@ const typeText = async (text: string, containerRef: RefObject<HTMLDivElement>, t
 	// resolve promise when typing actions AND speech synthesis speaking are done
 	return new Promise((resolve: (value?: undefined) => void) => {
 		let pendingTyping = true
-		let pendingSpeaking = !emitSound // only set to true if utterance managed to speak
+		let pendingSpeaking = emitSound // only set to true if utterance managed to speak
 
 		// speak
 		if (emitSound) {
 			if (synth.speaking) {
 				synth.cancel()
 			}
-			console.log(synth.speaking)
+			console.log("ISSPEAKING", synth.speaking)
 			let utterance = new SpeechSynthesisUtterance(text);
 
 			utterance.addEventListener("error", e => {
+				pendingSpeaking = false
 				console.log("ERROR", e)
 			})
 			utterance.addEventListener("start", e => {
@@ -198,7 +199,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 	const [suggestedConvoResponse, setSuggestedConvoResponse] = useState<string|null>(null)
 
 	const [gameEndedState, setGameEndedState] = useState(false)
-	const [gameEarnedPoints, setGameEarnedPoints] = useState("0")
+	const [gameEarnedPoints, setGameEarnedPoints] = useState<string|null>("0")
 	const [evalData, setEvalData] = useState<EvaluationData>()
 	const [gameData, setGameData] = useState<GameDescriptionData>()
 
@@ -231,11 +232,28 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 			let start: number = +new Date();
 			SRW.onStart = (recordingSession) => {
 				recordingSession.updateContent = (updatedContents) => {
+					// hide away micIndicator
+					if (!micIndicatorRef.current || !speakerIndicatorRef.current) {
+						return
+					}
+
+					speakerIndicatorRef.current.style.display = "flex"
+					micIndicatorRef.current.style.display = "none"
+
+					// show speaking indicator
+					speakerIndicatorRef.current.classList.toggle("a", false)
+					speakerIndicatorRef.current.classList.toggle("b", true) // user is speaking
+
 					setTypingContents(updatedContents.length === 0 ? NBSP : updatedContents)
 				}
 
 				recordingSession.end = (finalContents) => {
 					// end of recording
+					if (finalContents.length === 0) {
+						// empty response
+						return
+					}
+
 					console.log("ENDED", finalContents)
 					setTypingContents(finalContents)
 
@@ -248,23 +266,20 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 
 				recordingSession.start = () => {
 					// update contents
-					setTypingContents(NBSP) // &nbsp; unicode
+					// setTypingContents(NBSP) // &nbsp; unicode
 					console.log("set", NBSP)
-
-					// hide away micIndicator
-					if (!micIndicatorRef.current || !speakerIndicatorRef.current) {
-						return
-					}
-					speakerIndicatorRef.current.style.display = "flex"
-					micIndicatorRef.current.style.display = "none"
-
-					// show speaking indicator
-					speakerIndicatorRef.current.classList.toggle("a", false)
-					speakerIndicatorRef.current.classList.toggle("b", true) // user is speaking
 				}
 			}
 
 			SRW.start() // start speech recognition
+		}
+
+		SRW.onEmptyResponse = () => {
+			/**
+			 * empty response within short window period
+			 * continue with new recognition session
+			 */
+			startRecording()
 		}
 
 		const _inner = async() => {
@@ -354,11 +369,16 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 				}
 			}
 
-			gameController.dialogueAttemptFailedEvent = async (dialogueEntry, attemptEntry, suggestedResponse, showSuggestedResponse) => {
+			gameController.dialogueAttemptFailedEvent = async (dialogueEntry, attemptEntry, suggestedResponse, showSuggestedResponse, typeResponse) => {
 				// will never be called on a playthrough
 				if (showSuggestedResponse) {
 					// show suggested response to help user
 					setSuggestedConvoResponse(suggestedResponse)
+				}
+
+				// set contents
+				if (typeResponse) {
+					await typeText(attemptEntry.content, speakerIndicatorRef, setTypingContents)
 				}
 
 				// play failed sound effect
@@ -380,8 +400,14 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 				beep.play()
 
 				// set state to show end screen game
-				scorePoints(pointsEarned, setGameEarnedPoints)
-				setGameEndedState(true)
+				if (pointsEarned === -1) {
+					// no data yet
+					setGameEarnedPoints(null)
+					setGameEndedState(true)
+				} else {
+					scorePoints(pointsEarned, setGameEarnedPoints)
+					setGameEndedState(true)
+				}
 			}
 
 			gameController.gameEvalEvent = async (evaluation) => {
@@ -434,7 +460,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 					<p className="text-2xl font-bold text-white">{suggestedConvoResponse}</p>
 				</div>
 			</div>
-			<div className="grow flex flex-col p-3 gap-5">
+			<div className="flex flex-col p-3 gap-5">
 				<div ref={shiftTextParentRef} id="text-bounds" className="relative overflow-y-clip grow">
 					<p ref={prevTextRef} className={`text-slate-300 text-lg font-bold text-center transition-transform duration-1000`}>&nbsp;</p>
 					<p ref={currTextRef} className={`absolute top-0 left-0 w-full text-slate-300 text-lg font-bold text-center translate-y-full transition-transform duration-1000`}></p>
@@ -461,8 +487,8 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 				}}
 			>
 				<p className="font-bold text-2xl">Game Complete!</p>
-				<p className="font-bold text-8xl p-2 mt-6">{gameEarnedPoints}</p>
-				<p className="font-bold text-xl">Points Earned!</p>
+				<p className="font-bold text-8xl p-2 mt-6">{gameEarnedPoints != null ? gameEarnedPoints : "??"}</p>
+				<p className="font-bold text-xl">{gameEarnedPoints != null ? "Points Earned!" : "Please view this game again from your profile page"}</p>
 				<table className="w-full grow min-h-0 overflow-auto">
 					<tbody>
 						{
@@ -493,8 +519,8 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 								)
 							}) : (
 								<tr>
-									<td className="pt-4">Metrics</td>
-									<td className="pt-4">loading</td>
+									<td className="pt-4">Evaluating responses...</td>
+									<td className="pt-4"></td>
 								</tr>
 							)
 						}
