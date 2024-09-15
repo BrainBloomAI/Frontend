@@ -61,7 +61,7 @@ export default async function AccountPage({ params }: { params: { clientID: stri
 					<p className="grow">{clientData.mindsAssessment}</p>
 					</>) :
 					(
-						<div className="py-8">
+						<div className="flex flex-col gap-4 items-start py-8">
 							<p className="text-4xl font-bold">Pending evaluation from MINDS Staff</p>
 							<a href={`/clients/view/${clientData.userID}/onboard`} className="p-2 rounded bg-black font-bold text-white">Onboard</a>
 						</div>
