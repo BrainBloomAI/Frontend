@@ -160,7 +160,7 @@ const shiftScroll = (
 	}, 1000) // after transition is finished
 }
 
-const scorePoints = (points: number, setState: Dispatch<SetStateAction<string>>) => {
+const scorePoints = (points: number, setState: Dispatch<SetStateAction<string|null>>) => {
 	/**
 	 * show score point over a duration of 2 seconds
 	 */
