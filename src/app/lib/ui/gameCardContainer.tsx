@@ -23,7 +23,10 @@ export function GameCardContainer({ gameDataArray }: { gameDataArray: Array<Game
 									<p>{new Date(gameData.startedTimestamp).toLocaleString("en-SG")}</p>
 									<p className="text-sm text-[#555555]">#{gameData.gameID}</p>
 								</div>
-								<a href={`/games/${gameData.gameID}`} className="rounded p-2 px-4 bg-black text-white font-bold self-end">Go</a>
+								<div className="flex flex-col justify-end">
+									<p className="font-bold text-lg grow text-right">{gameData.pointsEarned && `+${gameData.pointsEarned}`}</p>
+									<a href={`/games/${gameData.gameID}`} className="rounded p-2 px-4 bg-black text-white font-bold self-end">Go</a>
+								</div>
 							</div>
 						</div>
 					)

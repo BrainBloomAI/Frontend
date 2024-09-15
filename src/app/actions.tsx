@@ -630,7 +630,7 @@ export async function getProfileData() {
 			if (err.response) {
 				errorMessage = err.response.data.split(": ")[1]
 			}
-			console.warn("getProfileData() failed to obtain a response, will fail")
+			console.warn("getProfileData() failed to obtain a response, will fail", err)
 		})
 
 	if (response) {
