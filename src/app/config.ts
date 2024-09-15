@@ -1,5 +1,5 @@
 export default {
-	serverOrigin: "http://localhost:8000/",
+	serverOrigin: "http://localhost:8000",
 	authTokenHeaderKeyName: "authtoken",
 
 	GameTheme: {

@@ -22,7 +22,7 @@ function ScenarioSelectionPanel({ scenarioList }: { scenarioList: Array<Scenario
 				<button
 					key={i}
 					className="bg-cover bg-center w-full aspect-square rounded border border-solid border-black bg-accent flex flex-col justify-end p-2"
-					style={{backgroundImage: `url(${config.serverOrigin}cdn/${scenario.backgroundImage})`}}
+					style={{backgroundImage: `url(${config.serverOrigin}/cdn/${scenario.backgroundImage})`}}
 					onClick={
 						async() => {
 							// check debounce

@@ -449,7 +449,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 				<p>[{gameData?.subtitle}]</p>
 			</div>
 			<div id="world-mapper" className="grow relative w-full min-h-0">
-				<img src={`${config.serverOrigin}cdn/${gameData?.backgroundImage}`} className="w-full h-full object-cover" />
+				<img src={`${config.serverOrigin}/cdn/${gameData?.backgroundImage}`} className="w-full h-full object-cover" />
 				<div className={`absolute top-0 left-0 w-full h-full p-4 bg-[#E17C1E] hidden opacity-0 transition-opacity`}
 					style={{
 						display: `${suggestedConvoResponse ? "block" : "none"}`,

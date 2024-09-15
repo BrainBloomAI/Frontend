@@ -14,7 +14,7 @@ npm run build
 
 ## /src/app/config.ts
 Configuration for frontend
-- `.serverOrigin`: (string) URL address of BrainBroomAI's backend
+- `.serverOrigin`: (string) URL address of BrainBroomAI's backend (e.g. "http://localhost:8000", no leading forward slash)
 - `.authTokenHeaderKeyName`: (string) name of authorisation header accepted by BrainBroomAI's backend to pass in authentication token
 - `.GameTheme`
 	- `.background`: (string) hexadecimal color code for the background of the game page
