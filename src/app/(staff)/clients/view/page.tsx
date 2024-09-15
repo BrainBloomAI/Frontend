@@ -40,6 +40,7 @@ export default function StaffViewClientsDashhboard() {
 								<p className="">Created: {new Date(clientData.created).toLocaleString("en-SG")}</p>
 								<p className="">Assessment: {clientData.mindsAssessment ?? "Not yet onboarded"}</p>
 								<div className="flex justify-end gap-2 mt-4">
+									{ clientData.mindsAssessment && <a href={`/clients/view/${clientData.userID}/stats`} className="p-2 rounded bg-white border-2 border-solid border-black font-bold text-black">Assessment</a> }
 									{ !clientData.mindsAssessment && <a href={`/clients/view/${clientData.userID}/onboard`} className="p-2 rounded bg-white border-2 border-solid border-black font-bold text-black">Onboard</a> }
 									<a href={`/clients/view/${clientData.userID}`} className="p-2 rounded bg-black font-bold text-white">Games</a>
 								</div>
