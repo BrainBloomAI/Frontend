@@ -1,11 +1,10 @@
 "use server"
 
 import { logout } from "@/app/actions"
-import { NextRequest, NextResponse } from "next/server"
+import { redirect } from "next/navigation"
 
-export async function GET(request: NextRequest) {
+export async function GET() {
 	let payload = await logout()
 
-	console.log("REQ", request.url)
-	return NextResponse.redirect(new URL("/login", request.url)) // redirect regardless TODO: fix this behavior
+	return redirect("/login")
 }
