@@ -189,6 +189,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 	const currTextRef = useRef<HTMLParagraphElement>(null)
 
 	const micIndicatorRef = useRef<HTMLDivElement>(null)
+	const [micStatus, setMicStatus] = useState(false)
 
 	const [typingContents, setTypingContents] = useState("")
 	const [responseIndicatorState, setResponseIndidcatorState] = useState(0)
@@ -446,7 +447,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 		<main className={`relative text-white flex flex-col h-svh overflow-y-clip`} style={{backgroundColor: config.GameTheme.background}}>
 			<div className="flex flex-row gap-4 p-3 items-start">
 				<a href="/abandon" className="p-2 rounded bg-[rgb(255_45_45)] font-bold text-white">Abandon</a>
-				<div className="flex flex-col items-center">
+				<div className="grow flex flex-col items-center">
 					<h1 className="font-bold text-xl">{gameData?.title}</h1>
 					<p>[{gameData?.subtitle}]</p>
 				</div>
@@ -459,7 +460,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 						opacity: `${suggestedConvoResponse ? 1 : 0}`
 					}}
 				>
-					<p className="text-2xl text-white pb-4">Suggested Response:</p>
+					<p className="text-2xl text-white pb-4">Recommendation:</p>
 					<p className="text-2xl font-bold text-white">{suggestedConvoResponse}</p>
 				</div>
 			</div>
@@ -471,11 +472,15 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 				<div ref={micIndicatorRef} id="mic-indicator" className="hidden flex flex-col items-center p-2">
 					<p className={`${activeDialogueInFocus}`}>Please speak</p>
 					<div className="w-full grow min-h-0 p-4">
-						<div className="relative p-6 aspect-square w-32 mx-auto overflow-clip flex justify-center items-center rounded-full bg-white">
+						<button className="relative p-6 aspect-square w-32 mx-auto flex justify-center items-center rounded-full bg-white">
 							<Microphone size={32} className="object-fit z-10" color="#fff" />
 							<div className={`absolute top-0 left-0 w-full h-full rounded-full origin-center animate-[radial-grow_1s_ease-out_infinite_alternate]`} style={{backgroundColor: config.GameTheme.background}}>
 							</div>
-						</div>
+							<div className="absolute bottom-0 left-full h-3 w-3 rounded-full z-10" style={{
+								backgroundColor: micStatus ? "#32a852" : "#ff0000"
+							}}>
+							</div>
+						</button>
 					</div>
 				</div>
 				<div ref={speakerIndicatorRef} id="speaking-indicator" className="group flex flex-row items-center gap-3 py-4 a justify-start [&.b]:flex-row-reverse">
