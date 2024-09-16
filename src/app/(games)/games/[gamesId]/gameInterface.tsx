@@ -444,9 +444,12 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 
 	return (
 		<main className={`relative text-white flex flex-col h-svh overflow-y-clip`} style={{backgroundColor: config.GameTheme.background}}>
-			<div className="flex flex-col items-center p-3">
-				<h1 className="font-bold text-xl">{gameData?.title}</h1>
-				<p>[{gameData?.subtitle}]</p>
+			<div className="flex flex-row gap-4 p-3 items-start">
+				<a href="/abandon" className="p-2 rounded bg-[rgb(255_45_45)] font-bold text-white">Abandon</a>
+				<div className="flex flex-col items-center">
+					<h1 className="font-bold text-xl">{gameData?.title}</h1>
+					<p>[{gameData?.subtitle}]</p>
+				</div>
 			</div>
 			<div id="world-mapper" className="grow relative w-full min-h-0">
 				<img src={`${config.serverOrigin}/cdn/${gameData?.backgroundImage}`} className="w-full h-full object-cover" />
