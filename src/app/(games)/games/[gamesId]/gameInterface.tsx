@@ -497,6 +497,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 				<p className="font-bold text-2xl">Game Complete!</p>
 				<p className="font-bold text-8xl p-2 mt-6">{gameEarnedPoints != null ? gameEarnedPoints : "??"}</p>
 				<p className="font-bold text-xl">{gameEarnedPoints != null ? "Points Earned!" : "Please view this game again from your profile page"}</p>
+				{ evalData && <p className="font-bold text-xl">{evalData.simpleDescription ?? ""}</p> }
 				<table className="w-full grow min-h-0 overflow-auto">
 					<tbody>
 						{
