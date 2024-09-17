@@ -6,7 +6,7 @@ const GAME_STATUS_COLOR = {
 	"abandoned": "#ff0000"
 }
 
-export function GameCardContainer({ gameDataArray }: { gameDataArray: Array<GameData> }) {
+export function GameCardContainer({ gameDataArray, isStaff=false }: { gameDataArray: Array<GameData>, isStaff: boolean }) {
 	return (
 		<div className="flex flex-col gap-3">
 			{
@@ -19,7 +19,7 @@ export function GameCardContainer({ gameDataArray }: { gameDataArray: Array<Game
 							</div>
 							<div className="flex flex-row gap-2 mt-4">
 								<div className="grow flex flex-col">
-									<p className="pb-4">{gameData.evaluation?.simpleDescription}</p>
+									<p className="pb-4">{isStaff ? gameData.evaluation?.fullDescription : gameData.evaluation?.simpleDescription}</p>
 									<p>{new Date(gameData.startedTimestamp).toLocaleString("en-SG")}</p>
 									<p className="text-sm text-[#555555]">#{gameData.gameID}</p>
 								</div>

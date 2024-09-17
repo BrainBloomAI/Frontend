@@ -18,7 +18,7 @@ export default async function ClientDetailPage({ params }: { params: { clientID:
 			</div>
 
 			<h1 className="text-2xl font-bold my-2 mt-4">Games played</h1>
-			<GameCardContainer gameDataArray={clientData.games} />
+			<GameCardContainer gameDataArray={clientData.games} isStaff={true} />
 		</main>
 	)
 }
