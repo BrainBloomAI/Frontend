@@ -17,7 +17,7 @@ export default async function GameHomePage() {
 		redirect("/login")
 	}
 
-	let profileDataPayload = await getProfileData() // TODO: remove bloat
+	let profileDataPayload = await getProfileData()
 	let profileData: ExtProfileData|null = null;
 	if (profileDataPayload.success) {
 		profileData = profileDataPayload.data!
