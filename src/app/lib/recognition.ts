@@ -58,7 +58,7 @@ export class Recorder {
 		// initialise microphone
 		this.recorder;
 		navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-			const recorder = new MediaRecorder(stream);
+			const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
 			this.recorder = recorder;
 
 			this.recorder.ondataavailable = async (event) => {
