@@ -276,8 +276,8 @@ export async function logout() {
 
 	console.log("\n\n\nLOGGEDOUT:", loggedOut)
 	if (loggedOut) {
+		await downgradeSession() // downgrade regardless whether server revoke token, as client expects to log out from session
 		console.log("downgrading")
-		await downgradeSession()
 
 		return {
 			success: true
@@ -338,9 +338,10 @@ export async function getScenarioList() {
 		}
 
 		return Promise.reject(-1)
-	}).catch(err => { // TODO: FIX TYPECAST
+	}).catch(async err => { // TODO: FIX TYPECAST
 		// server failed to respond
 		console.warn("getScenarioList() failed to obtain a response, will silently fail", err)
+		redirect("/logout") // logout of current session
 	})
 
 	console.log("service end", await getSession())
@@ -379,7 +380,6 @@ export async function abandonGame() {
 		})
 
 	if (gameID) {
-		redirect(`/games`)
 		return {
 			success: true
 		}

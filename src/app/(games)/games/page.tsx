@@ -4,6 +4,7 @@ import { getScenarioList } from "@/app/actions"
 import Alerts from "@/app/lib/ui/alerts"
 import ScenarioSelectionWindow from "./scenarioSelectionBtn";
 import config from "@/app/config"
+import { redirect } from "next/navigation";
 
 export default async function GameHomePage() {
 	let scenarioList = await getScenarioList()
@@ -12,6 +13,7 @@ export default async function GameHomePage() {
 		// failed server-side
 		scenarioList = []
 		errorMessage = "Failed to load scenarios, please try again later"
+		redirect("/login")
 	}
 
 	return (
