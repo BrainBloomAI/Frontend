@@ -2,7 +2,7 @@
 
 import asset_01 from "@/public/games/asset_01.png"
 
-import { Microphone } from "@phosphor-icons/react"
+import { Microphone, SpeakerHigh, SpeakerSlash } from "@phosphor-icons/react"
 
 import { StaticImageData } from "next/image"
 import { Game } from "@/app/lib/controllers/game"
@@ -269,6 +269,7 @@ export default function GameInterface({ gamesId, prefs }: { gamesId: string, pre
 	const typingContainerRef = useRef<HTMLParagraphElement>(null)
 
 	const [suggestedConvoResponse, setSuggestedConvoResponse] = useState<string|null>(null)
+	const [suggestedConvoResponseIsSpeaking, setSuggestedConvoResponseIsSpeaking] = useState(true)
 
 	const [gameEndedState, setGameEndedState] = useState(false)
 	const [gameEarnedPoints, setGameEarnedPoints] = useState<string|null>("0")
@@ -568,6 +569,21 @@ export default function GameInterface({ gamesId, prefs }: { gamesId: string, pre
 		}
 	}, [recorderObj, speakerIndicatorRef, typingContainerRef])
 
+	let suggestConvoResponseSpeakingChannel = 0
+	useEffect(() => {
+		if (!suggestedConvoResponseIsSpeaking || !suggestedConvoResponse) {
+			// either not speaking or suggestedConvoResponse is empty (unset action)
+			return
+		}
+
+		let _cid = ++suggestConvoResponseSpeakingChannel
+		setTimeout(() => {
+			if (_cid === suggestConvoResponseSpeakingChannel) {
+				speakText(suggestedConvoResponse, 1)
+			}
+		}, 500) // play guidance statement 500ms later if still relevant
+	}, [suggestedConvoResponse, suggestedConvoResponseIsSpeaking])
+
 	return (
 		<main className={`relative text-white flex flex-col h-svh overflow-y-clip`} style={{backgroundColor: config.GameTheme.background}}>
 			<div className="flex flex-row gap-4 p-3 items-start">
@@ -579,14 +595,19 @@ export default function GameInterface({ gamesId, prefs }: { gamesId: string, pre
 			</div>
 			<div id="world-mapper" className="grow relative w-full min-h-0">
 				<img src={`${config.serverOrigin}/cdn/${gameData?.backgroundImage}`} className="w-full h-full object-cover" />
-				<div className={`absolute top-0 left-0 w-full h-full p-4 bg-[#E17C1E] hidden opacity-0 transition-opacity`}
+				<div className={`absolute top-0 left-0 w-full h-full flex flex-col p-4 bg-[#E17C1E] hidden opacity-0 transition-opacity`}
 					style={{
-						display: `${suggestedConvoResponse ? "block" : "none"}`,
+						display: `${suggestedConvoResponse ? "flex" : "none"}`,
 						opacity: `${suggestedConvoResponse ? 1 : 0}`
 					}}
 				>
 					<p className="text-2xl text-white pb-4">{["Recommendation:", "試看："][prefs.lang]}</p>
-					<p className="text-2xl font-bold text-white">{suggestedConvoResponse}</p>
+					<p className="text-2xl font-bold text-white grow">{suggestedConvoResponse}</p>
+					<button className="self-end" onClick={() => setSuggestedConvoResponseIsSpeaking(!suggestedConvoResponseIsSpeaking)}>
+						{
+							suggestedConvoResponseIsSpeaking ? <SpeakerHigh size={32} /> : <SpeakerSlash size={32} />
+						}
+					</button>
 				</div>
 			</div>
 			<div className="flex flex-col p-3 gap-5">
