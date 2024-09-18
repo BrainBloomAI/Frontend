@@ -206,3 +206,7 @@ export type ProfileData = {
 }
 
 export type ExtProfileData = ProfileData & { games: Array<GameData> }
+
+export type GamePreferences = {
+	lang: 0|1|2|3
+}

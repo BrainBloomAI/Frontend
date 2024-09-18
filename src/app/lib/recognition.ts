@@ -2,6 +2,7 @@
 
 import React, { Dispatch, SetStateAction, useEffect, useState } from 'react'
 import { io, Socket } from "socket.io-client"
+import { GamePreferences } from './definitions'
 
 interface RecordingSession {
 	_id?: number,
@@ -17,6 +18,8 @@ interface SocketConnectionDataPayload {
 }
 
 export class Recorder {
+	gamePrefs: GamePreferences
+
 	isRecording: boolean
 	setIsRecording: Dispatch<SetStateAction<boolean>>
 
@@ -33,17 +36,20 @@ export class Recorder {
 	constructor({
 		isRecording, setIsRecording,
 		isConnected, setIsConnected,
-		socketURL
-
+		socketURL,
+		prefs
 	}: {
 		isRecording: boolean, setIsRecording: Dispatch<SetStateAction<boolean>>,
 		isConnected: boolean, setIsConnected: Dispatch<SetStateAction<boolean>>,
-		socketURL: string
+		socketURL: string,
+		prefs: GamePreferences
 	}) {
 		/**
 		 * obtain user media recorder
 		 * initialise websocket to transmit audio data
 		 */
+
+		this.gamePrefs = prefs
 
 		// react states
 		this.isRecording = isRecording
@@ -88,7 +94,11 @@ export class Recorder {
 
 			this.socket.io.engine.on("upgrade", (transport) => {
 				// upgraded
+
+				// set preferences
+				this.socket.emit("set-prefs", this.gamePrefs)
 			});
+
 		}
 
 		const onDisconnect = () => {

@@ -7,9 +7,16 @@ import { redirect, RedirectType } from "next/navigation"
 
 import { GameData } from "@/app/lib/definitions"
 import { AxiosRequestConfig, AxiosResponse } from "axios"
-import { Game } from "./lib/controllers/game"
-import { Console } from "console"
-import { reportWebVitals } from "next/dist/build/templates/pages"
+
+import { v2 } from "@google-cloud/translate"
+import textToSpeech from "@google-cloud/text-to-speech"
+
+const googleTranslateClient = new v2.Translate();
+const googleSynthesisClient = new textToSpeech.TextToSpeechClient();
+
+const langList = ["en", "zh-CN", "ms", "hi"]
+const languageCodes = ["en-GB", "cmn-CN", "ms-MY", "hi-IN"]
+const voiceNames = ["en-GB-Neural2-B", "cmn-CN-Wavenet-C", "ms-MY-Wavenet-A", "hi-IN-Neural2-B"]
 
 export async function updateMindsEvaluation(state: MindsEvalFormState, formData: FormData) {
 	const validatedFields = OnboardFormSchema.safeParse({
@@ -856,5 +863,28 @@ export async function deleteScenario(scenarioID: string) {
 		return {
 			message: errorMessage ?? "Failed to communicate with server (14)"
 		}
+	}
+}
+
+export async function translateText(text: string, to: number) {
+	let [ translations ] = await googleTranslateClient.translate(text, langList[to]);
+	let translationsList = Array.isArray(translations) ? translations : [translations];
+
+	return translationsList[0]
+}
+
+export async function synthesis(text: string, lang: number) {
+	const request = {
+		input: { text },
+		voice: { languageCode: languageCodes[lang], name: voiceNames[lang], ssmlGender: "NEUTRAL" as "NEUTRAL" },
+		audioConfig: { audioEncoding: "MP3" as "MP3", speakingRate: 0.8 },
+	};
+
+	const [ response ] = await googleSynthesisClient.synthesizeSpeech(request);
+
+	if (response.audioContent == null || typeof response.audioContent === "string") {
+		return
+	} else {
+		return response.audioContent
 	}
 }

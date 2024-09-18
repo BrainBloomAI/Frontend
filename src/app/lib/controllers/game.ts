@@ -1,7 +1,7 @@
 "use client"
 
 import { getGameData, newDialogue } from "@/app/actions"
-import { SPEAKER_ID, RESPONSE_STATUS, AttemptEntry, DialogueEntry, GameData, GameDescriptionData, EvaluationData } from "@/app/lib/definitions"
+import { SPEAKER_ID, RESPONSE_STATUS, AttemptEntry, DialogueEntry, GameData, GameDescriptionData, EvaluationData, GamePreferences } from "@/app/lib/definitions"
 
 /**
  * front-end wrapper to interact with backend interface
@@ -29,6 +29,8 @@ export class Game {
 	ready: boolean
 	gameEnded: boolean
 
+	prefs: GamePreferences
+
 	gameID?: string
 	dialogues?: Array<DialogueEntry>
 	data?: GameDescriptionData
@@ -44,13 +46,15 @@ export class Game {
 	gameEndEvent?: (addedScore: number) => void // fired when game ended (will be fired for playthroughs too)
 	gameEvalEvent?: (evaluation?: EvaluationData) => void // fired after game ended and evaluation metrics are available (will be fired for playthroughs too, immediately)
 
-	constructor() {
+	constructor(prefs: GamePreferences) {
 		// states and references
 		this._dialoguePointer = -1 // initial state
 		this._currDialogueAttempts = 0
 
 		this.ready = false
 		this.gameEnded = false
+
+		this.prefs = prefs
 	}
 
 	async register(gameID: string) {

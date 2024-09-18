@@ -6,18 +6,20 @@ import { Microphone } from "@phosphor-icons/react"
 
 import { StaticImageData } from "next/image"
 import { Game } from "@/app/lib/controllers/game"
-import { GameDescriptionData, GameData, SPEAKER_ID, EvaluationData } from "@/app/lib/definitions"
+import { GameDescriptionData, GameData, SPEAKER_ID, EvaluationData, GamePreferences } from "@/app/lib/definitions"
 import { redirect, useRouter } from "next/navigation"
 import { Dispatch, Fragment, RefObject, SetStateAction, useEffect, useReducer, useRef, useState } from "react"
 import { Console } from "console"
 import { Recorder } from "@/app/lib/recognition"
 import { updateSession } from "@/app/lib/sessionManager"
 import config from "@/app/config"
+import { synthesis, translateText } from "@/app/actions"
 
 const activeDialogueInFocus = "font-bold text-2xl text-white"
 const activeDialogueOutOfFocus = "font-bold text-xl text-slate-200"
 
 const NBSP = " " // non-breaking space for empty lines
+let globalPrefs: GamePreferences; // to be set when main component renders
 
 const speakText = (text: string, speaker: 0|1) => {
 	/**
@@ -41,43 +43,58 @@ const speakText = (text: string, speaker: 0|1) => {
 		resolverFn() // no audio -> resolve promise to continue game
 	})
 
+	console.log("INVOKED SO FAST", globalPrefs)
 	mediaSource.addEventListener("sourceopen", async () => {
 		console.log("SOURCE OPENED")
-		const sourceBuffer = mediaSource.addSourceBuffer("audio/aac")
 
-		const readableStream = await fetch(`${config.speechServiceSynthesisProtocol}://${config.speechServiceURL}/${config.speechServiceSynthesisNamespace}`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json"
-			},
-			body: JSON.stringify({ text, speaker })
-		}).then(r => {
-			console.log("STREAM RETURNED", r.body)
-			return r.body
-		})
-		if (!readableStream) {
-			// invalid response supplied
-			return
-		}
-
-		const reader = readableStream.getReader()
-		console.log("reader", reader)
-		const pushToBuffer = async () => {
-			console.log("Pushing")
-			const { done, value } = await reader.read()
-			console.log("reading", value)
-			if (done) {
-				mediaSource.endOfStream()
+		if (globalPrefs.lang === 0) {
+			const sourceBuffer = mediaSource.addSourceBuffer("audio/aac")
+			const readableStream = await fetch(`${config.speechServiceSynthesisProtocol}://${config.speechServiceURL}/${config.speechServiceSynthesisNamespace}`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json"
+				},
+				body: JSON.stringify({ text, speaker })
+			}).then(r => {
+				console.log("STREAM RETURNED", r.body)
+				return r.body
+			})
+			if (!readableStream) {
+				// invalid response supplied
 				return
 			}
 
-			if (!sourceBuffer.updating) {
-				sourceBuffer.appendBuffer(value)
-			}
-		}
+			const reader = readableStream.getReader()
+			console.log("reader", reader)
+			const pushToBuffer = async () => {
+				console.log("Pushing")
+				const { done, value } = await reader.read()
+				console.log("reading", value)
+				if (done) {
+					mediaSource.endOfStream()
+					return
+				}
 
-		sourceBuffer.addEventListener("updateend", pushToBuffer)
-		pushToBuffer() // initial update
+				if (!sourceBuffer.updating) {
+					sourceBuffer.appendBuffer(value)
+				}
+			}
+
+			sourceBuffer.addEventListener("updateend", pushToBuffer)
+			pushToBuffer() // initial update
+		} else {
+			// utilise google synthesiser for other languages
+			const sourceBuffer = mediaSource.addSourceBuffer("audio/mpeg")
+			let synthResult = await synthesis(text, globalPrefs.lang)
+			if (!synthResult) {
+				// failed
+				return resolverFn() // resolve returned promise as no sound will play
+			}
+
+			synthResult = new Uint8Array(synthResult)
+			sourceBuffer.addEventListener("updateend", () => mediaSource.endOfStream())
+			sourceBuffer.appendBuffer(synthResult.buffer)
+		}
 	})
 
 	mediaSource.addEventListener("error", e => {
@@ -112,7 +129,6 @@ const typeText = async (text: string, containerRef: RefObject<HTMLDivElement>, t
 					// typing is done too
 					resolve()
 				}
-				return clearTimeout(intervalId)
 			})
 		}
 
@@ -236,8 +252,9 @@ const scorePoints = (points: number, setState: Dispatch<SetStateAction<string|nu
 	}, 100)
 }
 
-export default function GameInterface({ gamesId }: { gamesId: string }) {
-	const gameController = new Game()
+export default function GameInterface({ gamesId, prefs }: { gamesId: string, prefs: GamePreferences }) {
+	const gameController = new Game(prefs)
+	globalPrefs = Object.assign({}, prefs) // set global
 
 	const shiftTextParentRef = useRef<HTMLDivElement>(null)
 	const prevTextRef = useRef<HTMLParagraphElement>(null)
@@ -267,6 +284,19 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 		return new Promise(res => {
 			setTimeout(res, delay)
 		})
+	}
+
+	const localiseTextDict: { [key: string]: string } = {} // cache of translations
+	const localiseText = (text: string) => {
+		if (prefs.lang === 0) {
+			return text
+		} else {
+			if (localiseTextDict[text]) {
+				return localiseTextDict[text]
+			}
+
+			return translateText(text, prefs.lang)
+		}
 	}
 
 	// recorder states
@@ -299,7 +329,8 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 		let SR = new Recorder({
 			isRecording, setIsRecording,
 			isConnected, setIsConnected,
-			socketURL: `${config.speechServiceRecongitionProtocol}://${config.speechServiceURL}/${config.speechServiceRecognitionNamespace}`
+			socketURL: `${config.speechServiceRecongitionProtocol}://${config.speechServiceURL}/${config.speechServiceRecognitionNamespace}`,
+			prefs
 		})
 		setRecorderObj(SR) // store in state for reference by DOM
 	}, [])
@@ -406,19 +437,19 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 				setResponseIndidcatorState(0) // good
 
 				if (dialogueEntry.by === SPEAKER_ID.System) {
-					await typeText(attemptEntry.content, speakerIndicatorRef, setTypingContents, true, 0)
+					await typeText(await localiseText(attemptEntry.content), speakerIndicatorRef, setTypingContents, true, 0)
 					
 					// scroll dialogue into view simultaneously
 					shiftScroll(
 						shiftTextParentRef,
 						{
 							ref: prevTextRef,
-							contents: prevAttemptContent,
+							contents: await localiseText(prevAttemptContent),
 							direction: prevAttemptDirection
 						},
 						{
 							ref: currTextRef,
-							contents: attemptEntry.content,
+							contents: await localiseText(attemptEntry.content),
 							direction: "left" // speaker is system
 						})
 					prevAttemptContent = attemptEntry.content // set state
@@ -434,7 +465,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 					// show pulsating text
 					if (hasNextDialogue) {
 						// show typing effect since is a playthrough
-						await typeText(attemptEntry.content, speakerIndicatorRef, setTypingContents, true, 1)
+						await typeText(await localiseText(attemptEntry.content), speakerIndicatorRef, setTypingContents, true, 1)
 						await promiseDelay(1000)
 					} else {
 						// give bing sound effect
@@ -465,12 +496,12 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 				// will never be called on a playthrough
 				if (showSuggestedResponse) {
 					// show suggested response to help user
-					setSuggestedConvoResponse(suggestedResponse)
+					setSuggestedConvoResponse(await localiseText(suggestedResponse))
 				}
 
 				// set contents
 				if (typeResponse) {
-					await typeText(attemptEntry.content, speakerIndicatorRef, setTypingContents, true, 1)
+					await typeText(await localiseText(attemptEntry.content), speakerIndicatorRef, setTypingContents, true, 1)
 				}
 
 				// play failed sound effect
@@ -517,6 +548,10 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 				}
 
 				// set game data
+				if (prefs.lang !== 0) {
+					gameController.data!.title = await localiseText(gameController.data!.title)
+					gameController.data!.subtitle = await localiseText(gameController.data!.subtitle)
+				}
 				setGameData(gameController.data!)
 
 				// start game flow
@@ -536,7 +571,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 	return (
 		<main className={`relative text-white flex flex-col h-svh overflow-y-clip`} style={{backgroundColor: config.GameTheme.background}}>
 			<div className="flex flex-row gap-4 p-3 items-start">
-				<a href="/abandon" className="p-2 rounded bg-[rgb(255_45_45)] font-bold text-white">Abandon</a>
+				<a href="/abandon" className="p-2 rounded bg-[rgb(255_45_45)] font-bold text-white">{["Abandon", "退出"][prefs.lang]}</a>
 				<div className="grow flex flex-col items-center">
 					<h1 className="font-bold text-xl">{gameData?.title}</h1>
 					<p>[{gameData?.subtitle}]</p>
@@ -550,7 +585,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 						opacity: `${suggestedConvoResponse ? 1 : 0}`
 					}}
 				>
-					<p className="text-2xl text-white pb-4">Recommendation:</p>
+					<p className="text-2xl text-white pb-4">{["Recommendation:", "試看："][prefs.lang]}</p>
 					<p className="text-2xl font-bold text-white">{suggestedConvoResponse}</p>
 				</div>
 			</div>
@@ -560,7 +595,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 					<p ref={currTextRef} className={`absolute top-0 left-0 w-full text-slate-300 text-lg font-bold text-center translate-y-full transition-transform duration-1000`}></p>
 				</div>
 				<div ref={micIndicatorRef} id="mic-indicator" className="hidden flex flex-col items-center p-2">
-					<p className={`${activeDialogueInFocus}`}>Please speak</p>
+					<p className={`${activeDialogueInFocus}`}>{["Please speak", "請説"][prefs.lang]}</p>
 					<div className="w-full grow min-h-0 p-4">
 						<button className="relative p-6 aspect-square w-32 mx-auto flex justify-center items-center rounded-full bg-white"
 							onClick={() => {
