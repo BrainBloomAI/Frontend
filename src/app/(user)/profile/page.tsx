@@ -3,13 +3,15 @@
 import { useContext } from "react"
 import { ProfileDataContext } from "@/app/lib/ui/contextWrapper"
 
+import headshot from "@/public/branding/profile.webp"
+
 export default function AccountPage() {
 	const { profileData } = useContext(ProfileDataContext)
 
 	return (
 		<div className="p-8 flex flex-col items-center h-svh">
 			<div id="headshot" className="rounded-full w-[80%] aspect-square border-2 border-black border-solid overflow-clip">
-				<img className="w-full h-full object-fit" src="https://www.freeiconspng.com/uploads/account-profile-icon-2.png" />
+				<img className="w-full h-full object-fit" src={headshot.src} />
 			</div>
 			<div className="w-full flex flex-row">
 				<div className="grow self-center">
