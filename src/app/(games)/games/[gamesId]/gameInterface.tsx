@@ -37,8 +37,9 @@ const speakText = (text: string, speaker: 0|1) => {
 	})
 
 	audio.src = URL.createObjectURL(mediaSource)
-	audio.play()
-
+	audio.play().catch(err => {
+		resolverFn() // no audio -> resolve promise to continue game
+	})
 
 	mediaSource.addEventListener("sourceopen", async () => {
 		console.log("SOURCE OPENED")
@@ -124,7 +125,7 @@ const typeText = async (text: string, containerRef: RefObject<HTMLDivElement>, t
 			}
 
 			typingContentState(text.slice(0, charPointer++))
-			if (charPointer >= text.length) {
+			if (charPointer >= text.length +1) {
 				pendingTyping = false
 				if (!pendingSpeaking) {
 					// speaking is done too
