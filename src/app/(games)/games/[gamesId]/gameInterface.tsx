@@ -8,9 +8,9 @@ import { StaticImageData } from "next/image"
 import { Game } from "@/app/lib/controllers/game"
 import { GameDescriptionData, GameData, SPEAKER_ID, EvaluationData } from "@/app/lib/definitions"
 import { redirect, useRouter } from "next/navigation"
-import { Dispatch, RefObject, SetStateAction, useEffect, useReducer, useRef, useState } from "react"
+import { Dispatch, Fragment, RefObject, SetStateAction, useEffect, useReducer, useRef, useState } from "react"
 import { Console } from "console"
-import { SpeechRecognitionWrapper } from "@/app/lib/recognition"
+import { Recorder } from "@/app/lib/recognition"
 import { updateSession } from "@/app/lib/sessionManager"
 import config from "@/app/config"
 
@@ -19,13 +19,78 @@ const activeDialogueOutOfFocus = "font-bold text-xl text-slate-200"
 
 const NBSP = " " // non-breaking space for empty lines
 
-const typeText = async (text: string, containerRef: RefObject<HTMLDivElement>, typingContentState: Dispatch<SetStateAction<string>>, emitSound: boolean = true) => {
+const speakText = (text: string, speaker: 0|1) => {
+	/**
+	 * text to speech streamed with mediasource and played via audio object
+	 */
+	const audio = new Audio()
+	const mediaSource = new MediaSource()
+
+	// return promise chain
+	let resolverFn: (value?: unknown) => void
+	let p = new Promise(res => {
+		resolverFn = res
+	})
+
+	audio.addEventListener("ended", () => {
+		resolverFn()
+	})
+
+	audio.src = URL.createObjectURL(mediaSource)
+	audio.play()
+
+
+	mediaSource.addEventListener("sourceopen", async () => {
+		console.log("SOURCE OPENED")
+		const sourceBuffer = mediaSource.addSourceBuffer("audio/aac")
+
+		const readableStream = await fetch(`${config.speechServiceSynthesisProtocol}://${config.speechServiceURL}/${config.speechServiceSynthesisNamespace}`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json"
+			},
+			body: JSON.stringify({ text, speaker })
+		}).then(r => {
+			console.log("STREAM RETURNED", r.body)
+			return r.body
+		})
+		if (!readableStream) {
+			// invalid response supplied
+			return
+		}
+
+		const reader = readableStream.getReader()
+		console.log("reader", reader)
+		const pushToBuffer = async () => {
+			console.log("Pushing")
+			const { done, value } = await reader.read()
+			console.log("reading", value)
+			if (done) {
+				mediaSource.endOfStream()
+				return
+			}
+
+			if (!sourceBuffer.updating) {
+				sourceBuffer.appendBuffer(value)
+			}
+		}
+
+		sourceBuffer.addEventListener("updateend", pushToBuffer)
+		pushToBuffer() // initial update
+	})
+
+	mediaSource.addEventListener("error", e => {
+		console.log("Mediasource error")
+		resolverFn() // immediately resolve promise
+	})
+
+	return p
+}
+
+const typeText = async (text: string, containerRef: RefObject<HTMLDivElement>, typingContentState: Dispatch<SetStateAction<string>>, emitSound: boolean = true, speaker: 0|1 = 0) => {
 	if (!containerRef.current) {
 		return
 	}
-
-	// speech synthesis
-	const synth = window.speechSynthesis;
 
 	// clear contents
 	typingContentState("")
@@ -38,27 +103,16 @@ const typeText = async (text: string, containerRef: RefObject<HTMLDivElement>, t
 
 		// speak
 		if (emitSound) {
-			if (synth.speaking) {
-				synth.cancel()
-			}
-			console.log("ISSPEAKING", synth.speaking)
-			let utterance = new SpeechSynthesisUtterance(text);
+			speakText(text, speaker).then(() => {
+				// finished
+				pendingSpeaking = false // no longer pending
 
-			utterance.addEventListener("error", e => {
-				pendingSpeaking = false
-				console.log("ERROR", e)
-			})
-			utterance.addEventListener("start", e => {
-				pendingSpeaking = true
-			})
-			utterance.addEventListener("end", e => {
-				pendingSpeaking = false
 				if (!pendingTyping) {
 					// typing is done too
 					resolve()
 				}
+				return clearTimeout(intervalId)
 			})
-			synth.speak(utterance)
 		}
 
 		// type
@@ -189,7 +243,6 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 	const currTextRef = useRef<HTMLParagraphElement>(null)
 
 	const micIndicatorRef = useRef<HTMLDivElement>(null)
-	const [micStatus, setMicStatus] = useState(false)
 
 	const [typingContents, setTypingContents] = useState("")
 	const [responseIndicatorState, setResponseIndidcatorState] = useState(0)
@@ -215,71 +268,108 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 		})
 	}
 
+	// recorder states
+	const [recorderObj, setRecorderObj] = useState<Recorder>()
+	const [isRecording, setIsRecording] = useState(false);
+
+	// socket states
+	const [isConnected, setIsConnected] = useState(false);
+	const [transport, setTransport] = useState("N/A");
+
+
+	const startRecording = () => {
+		if (recorderObj) {
+			// is in recording phase
+			recorderObj.startRecording()
+		}
+	}
+
+	const stopRecording = () => {
+		if (recorderObj) {
+			// is in recording phase
+			recorderObj.stopRecording()
+		}
+	}
+
 	useEffect(() => {
-		// speech recognition
-		let SRW = new SpeechRecognitionWrapper()
+		/**
+		 * main render cycle to instantiate Recorder object
+		 */
+		let SR = new Recorder({
+			isRecording, setIsRecording,
+			isConnected, setIsConnected,
+			socketURL: `${config.speechServiceRecongitionProtocol}://${config.speechServiceURL}/${config.speechServiceRecognitionNamespace}`
+		})
+		setRecorderObj(SR) // store in state for reference by DOM
+	}, [])
+
+	useEffect(() => {
+		if (!recorderObj) {
+			// no changes
+			return
+		}
 
 		// game sound effects
 		let bing = new Audio("/sounds/bing.mp3") // okay
 		let dong = new Audio("/sounds/dong.mp3") // failed
 		let beep = new Audio("/sounds/beep.mp3") // celebratory
 
-		const startRecording = async () => {
+		const startRecordingPhase = async () => {
 			// show user speaker to prompt
 			speakerIndicatorRef.current!.style.display = "none"
 			micIndicatorRef.current!.style.display = "flex"
 
 			// start recording session
 			let start: number = +new Date();
-			SRW.onStart = (recordingSession) => {
-				recordingSession.updateContent = (updatedContents) => {
-					// hide away micIndicator
-					if (!micIndicatorRef.current || !speakerIndicatorRef.current) {
-						return
-					}
+			const session = await recorderObj.createSession()
+			console.log("SESSION CREATED")
 
-					speakerIndicatorRef.current.style.display = "flex"
-					micIndicatorRef.current.style.display = "none"
-
-					// show speaking indicator
-					speakerIndicatorRef.current.classList.toggle("a", false)
-					speakerIndicatorRef.current.classList.toggle("b", true) // user is speaking
-
-					setTypingContents(updatedContents.length === 0 ? NBSP : updatedContents)
+			session.onResult = (updatedContents) => {
+				// hide away micIndicator
+				if (!micIndicatorRef.current || !speakerIndicatorRef.current) {
+					return
 				}
 
-				recordingSession.end = (finalContents) => {
-					// end of recording
-					if (finalContents.length === 0) {
-						// empty response
-						return
-					}
+				speakerIndicatorRef.current.style.display = "flex"
+				micIndicatorRef.current.style.display = "none"
 
-					console.log("ENDED", finalContents)
-					setTypingContents(finalContents)
+				// show speaking indicator
+				speakerIndicatorRef.current.classList.toggle("a", false)
+				speakerIndicatorRef.current.classList.toggle("b", true) // user is speaking
 
-					// end SRW session
-					SRW.clearRecordingSession()
-
-					// return control back to game controller
-					gameController.respond(finalContents, +new Date() -start)
-				}
-
-				recordingSession.start = () => {
-					// update contents
-					// setTypingContents(NBSP) // &nbsp; unicode
-					console.log("set", NBSP)
-				}
+				setTypingContents(updatedContents.length === 0 ? NBSP : updatedContents)
 			}
 
-			SRW.start() // start speech recognition
-		}
+			session.onEnd = (finalContents, duration) => {
+				// end of recording
+				if (finalContents.length === 0) {
+					// empty response
+					return
+				}
 
-		SRW.onEmptyResponse = () => {
-			/**
-			 * empty response within short window period
-			 * continue with new recognition session
-			 */
+				// hide away micIndicator
+				if (!micIndicatorRef.current || !speakerIndicatorRef.current) {
+					return
+				}
+
+				speakerIndicatorRef.current.style.display = "flex"
+				micIndicatorRef.current.style.display = "none"
+
+				// show speaking indicator
+				speakerIndicatorRef.current.classList.toggle("a", false)
+				speakerIndicatorRef.current.classList.toggle("b", true) // user is speaking
+
+				// force typing contents to final one instead
+				console.log("ENDED", finalContents, duration)
+				setTypingContents(finalContents)
+
+				// end recording session
+				recorderObj.clearSession()
+
+				// return control back to game controller
+				gameController.respond(finalContents, duration *1000) // convert seconds to milliseconds
+			}
+
 			startRecording()
 		}
 
@@ -315,7 +405,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 				setResponseIndidcatorState(0) // good
 
 				if (dialogueEntry.by === SPEAKER_ID.System) {
-					await typeText(attemptEntry.content, speakerIndicatorRef, setTypingContents)
+					await typeText(attemptEntry.content, speakerIndicatorRef, setTypingContents, true, 0)
 					
 					// scroll dialogue into view simultaneously
 					shiftScroll(
@@ -337,13 +427,13 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 						return
 					} else {
 						// get user response
-						startRecording()
+						startRecordingPhase()
 					}
 				} else if (dialogueEntry.by === SPEAKER_ID.User) {
 					// show pulsating text
 					if (hasNextDialogue) {
 						// show typing effect since is a playthrough
-						await typeText(attemptEntry.content, speakerIndicatorRef, setTypingContents)
+						await typeText(attemptEntry.content, speakerIndicatorRef, setTypingContents, true, 1)
 						await promiseDelay(1000)
 					} else {
 						// give bing sound effect
@@ -379,7 +469,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 
 				// set contents
 				if (typeResponse) {
-					await typeText(attemptEntry.content, speakerIndicatorRef, setTypingContents)
+					await typeText(attemptEntry.content, speakerIndicatorRef, setTypingContents, true, 1)
 				}
 
 				// play failed sound effect
@@ -391,7 +481,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 
 				// let user respond again
 				setResponseIndidcatorState(0)
-				startRecording()
+				startRecordingPhase()
 			}
 
 			gameController.gameEndEvent = async (pointsEarned) => {
@@ -438,10 +528,9 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 
 		return () => {
 			// cleanup
-			SRW.stop()
-			SRW.onStart = undefined // unset
+			recorderObj.cleanup()
 		}
-	}, [speakerIndicatorRef, typingContainerRef])
+	}, [recorderObj, speakerIndicatorRef, typingContainerRef])
 
 	return (
 		<main className={`relative text-white flex flex-col h-svh overflow-y-clip`} style={{backgroundColor: config.GameTheme.background}}>
@@ -472,12 +561,20 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 				<div ref={micIndicatorRef} id="mic-indicator" className="hidden flex flex-col items-center p-2">
 					<p className={`${activeDialogueInFocus}`}>Please speak</p>
 					<div className="w-full grow min-h-0 p-4">
-						<button className="relative p-6 aspect-square w-32 mx-auto flex justify-center items-center rounded-full bg-white">
+						<button className="relative p-6 aspect-square w-32 mx-auto flex justify-center items-center rounded-full bg-white"
+							onClick={() => {
+								if (isRecording) {
+									stopRecording()
+								} else {
+									startRecording()
+								}
+							}}
+						>
 							<Microphone size={32} className="object-fit z-10" color="#fff" />
 							<div className={`absolute top-0 left-0 w-full h-full rounded-full origin-center animate-[radial-grow_1s_ease-out_infinite_alternate]`} style={{backgroundColor: config.GameTheme.background}}>
 							</div>
-							<div className="absolute bottom-0 left-full h-3 w-3 rounded-full z-10" style={{
-								backgroundColor: micStatus ? "#32a852" : "#ff0000"
+							<div className="absolute bottom-0 left-full h-3 w-3 rounded-full z-10 transition-colors" style={{
+								backgroundColor: isRecording ? "#32a852" : "#ff0000"
 							}}>
 							</div>
 						</button>
@@ -488,7 +585,7 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 					<p ref={typingContainerRef} className={`group-[.b]:text-right ${activeDialogueInFocus} transition-colors`} style={{color: config.GameTheme.responseIndicator[responseIndicatorState]}}>{typingContents}</p>
 				</div>
 			</div>
-			<div className={`flex flex-col items-center absolute top-full left-0 w-svw h-svh transition-transform duration-1000 p-8`}
+			<div className={`flex flex-col items-center absolute top-full left-0 w-svw h-svh transition-transform duration-1000 p-4 md:p-8`}
 				style={{
 					backgroundColor: config.GameTheme.background,
 					transform: `translateY(${gameEndedState ? -100 : 0}%)`
@@ -496,45 +593,47 @@ export default function GameInterface({ gamesId }: { gamesId: string }) {
 			>
 				<p className="font-bold text-2xl">Game Complete!</p>
 				<p className="font-bold text-8xl p-2 mt-6">{gameEarnedPoints != null ? gameEarnedPoints : "??"}</p>
-				<p className="font-bold text-xl">{gameEarnedPoints != null ? "Points Earned!" : "Please view this game again from your profile page"}</p>
-				{ evalData && <p className="font-bold text-xl">{evalData.simpleDescription ?? ""}</p> }
-				<table className="w-full grow min-h-0 overflow-auto">
-					<tbody>
-						{
-							evalData ? ["listening", "eq", "tone", "helpfulness", "clarity"].map((metric, i) => {
-								let metricKey = metric as "listening"|"eq"|"tone"|"helpfulness"|"clarity"
-								return (
-									<tr key={i}>
-										<td className="pb-4 pr-4 align-bottom">{metric.charAt(0).toUpperCase() + metric.substr(1).toLowerCase()}</td>
-										<td className="pb-4 w-full">
-											<div className="flex flex-col gap-2">
-												<p className="self-end">{evalData[metricKey]}</p>
-												<div className="relative w-full h-4 rounded bg-slate-500 border border-slate-300 border-solid">
-													<div className="absolute top-0 left-0 h-full scale-x-0 origin-left"
-														style={{
-															backgroundColor: "rgb(0 255 0)",
-															width: `${evalData[metricKey]}%`,
-															animationName: "grow-in",
-															animationDelay: "1500ms",
-															animationDuration: "2s",
-															animationFillMode: "forwards",
-															animationTimingFunction: "ease-out"
-														}}>
-													</div>
-												</div>
-											</div>
-										</td>
-									</tr>
-								)
-							}) : (
-								<tr>
-									<td className="pt-4">Evaluating responses...</td>
-									<td className="pt-4"></td>
-								</tr>
+				<p className="font-bold text-xl grow">{gameEarnedPoints != null ? "Points Earned!" : "Please view this game again from your profile page"}</p>
+				{ evalData && (
+					<>
+						<p className="font-bold pb-2">Assessment</p>
+						<p className="text-sm">{evalData.simpleDescription ?? ""}</p>
+					</>
+				)}
+				<div className="grid gap-x-4 gap-y-2 items-end w-full my-4 min-h-0 overflow-auto" style={{
+					gridTemplateColumns: "min-content auto"
+				}}>
+					{
+						evalData ? ["listening", "eq", "tone", "helpfulness", "clarity"].map((metric, i) => {
+							let metricKey = metric as "listening"|"eq"|"tone"|"helpfulness"|"clarity"
+							return (
+								<Fragment key={i}>
+								<p className="align-bottom text-sm font-bold w-min">{metric.charAt(0).toUpperCase() + metric.substr(1).toLowerCase()}</p>
+								<div className="flex flex-col gap-2 pb-1 grow">
+									<p className="self-end">{evalData[metricKey]}</p>
+									<div className="relative w-full h-2 rounded bg-slate-500">
+										<div className="absolute top-0 left-0 h-full scale-x-0 rounded origin-left"
+											style={{
+												backgroundColor: "rgb(0 255 0)",
+												width: `${evalData[metricKey]}%`,
+												animationName: "grow-in",
+												animationDelay: "1500ms",
+												animationDuration: "2s",
+												animationFillMode: "forwards",
+												animationTimingFunction: "ease-out"
+											}}>
+										</div>
+									</div>
+								</div>
+								</Fragment>
 							)
-						}
-					</tbody>
-				</table>
+						}) : (
+							<div>
+								<p className="pt-4">Evaluating responses...</p>
+							</div>
+						)
+					}
+				</div>
 				<a className="font-bold underline text-right w-full" href="/games">Go to home</a>
 			</div>
 		</main>
