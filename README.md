@@ -28,6 +28,10 @@ Configuration for frontend
 ## .env.local
 Only one variable is used to maintain sessions
 - `SECRET_KEY`: (string) 32 byte base64 encoded key
+- `GOOGLE_APPLICATION_CREDENTIALS `: (string) points to serviceAccountKey.json path (e.g. "./serviceAccountKey.json")
+
+## serviceAccountKey.json
+Contains the Google Cloud's service account key
 
 # Dependencies
 - [`next.js`](https://nextjs.org/): web framework with React
