@@ -10,6 +10,7 @@ import { AxiosRequestConfig, AxiosResponse } from "axios"
 
 import { v2 } from "@google-cloud/translate"
 import textToSpeech from "@google-cloud/text-to-speech"
+import config from "@/app/config"
 
 const googleTranslateClient = new v2.Translate();
 const googleSynthesisClient = new textToSpeech.TextToSpeechClient();
@@ -887,4 +888,51 @@ export async function synthesis(text: string, lang: number) {
 	} else {
 		return response.audioContent
 	}
+}
+
+export async function exportClientData(clientUsername: string) {
+	// get auth token
+	let session = await getSession()
+	if (!session || session.authenticated === false) {
+		// not authenticated
+		return {
+			success: false,
+			message: "Not authenticated"
+		}
+	}
+
+	// get auth token
+	let authToken = session.bridge.defaults.headers[config.authTokenHeaderKeyName]?.toString()
+	if (!authToken) {
+		return {
+			success: false,
+			message: "Not authenticated"
+		}
+	}
+
+	// params
+	const queryParams = new URLSearchParams()
+	console.log("auth token", authToken)
+	queryParams.append("authToken", authToken)
+	queryParams.append("exportFormat", "csv")
+	queryParams.append("includeScenario", "true")
+	queryParams.append("includeGames", "true")
+	queryParams.append("includeEvaluation", "true")
+	queryParams.append("includeDialogues", "true")
+	queryParams.append("computePerformance", "true")
+	queryParams.append("targetUsername", clientUsername)
+
+	console.log("path", `/export?${queryParams.toString()}`)
+	const dataEndpoint = await session.bridge.get(`/export?${queryParams.toString()}`).then(r => {
+		if (r.status === 200) {
+			return r.data
+		}
+
+		throw new Error(`FAILED: Uncaught response code, ${r.status}`)
+	}).catch(err => {
+		console.log("error", err)
+		return false
+	})
+
+	return dataEndpoint
 }

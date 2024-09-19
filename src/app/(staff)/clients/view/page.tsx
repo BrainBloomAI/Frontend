@@ -21,6 +21,28 @@ export default function StaffViewClientsDashhboard() {
 		fetchData()
 	}, [])
 
+	const exportClientData = async (clientUsername: string) => {
+		fetch(`/api/export/${clientUsername}`).then(r => {
+			if (r.status === 200) {
+				return r.json()
+			}
+
+			throw new Error(`Invalid status ${r.status}`)
+		}).then(data => {
+			if (data.success) {
+				let fileContent = data.content
+
+				let blob = new Blob([fileContent], { type: "text/csv;charset=utf-8" })
+				let url = URL.createObjectURL(blob)
+
+				let a = document.createElement("a")
+				a.href = url
+				a.download = `${clientUsername}_data.csv`
+				a.click()
+			}
+		})
+	}
+
 	return (
 		<div className="p-8 flex flex-col h-svh">
 			<div className="flex flex-col gap-2 mb-8">
@@ -40,6 +62,7 @@ export default function StaffViewClientsDashhboard() {
 								<p className="">Created: {new Date(clientData.created).toLocaleString("en-SG")}</p>
 								<p className="">Assessment: {clientData.mindsAssessment ?? "Not yet onboarded"}</p>
 								<div className="flex justify-end gap-2 mt-4">
+									<button onClick={() => exportClientData(clientData.username)} className="p-2 rounded bg-white border-2 border-solid border-black font-bold text-black">Export</button>
 									{ clientData.mindsAssessment && <a href={`/clients/view/${clientData.userID}/stats`} className="p-2 rounded bg-white border-2 border-solid border-black font-bold text-black">Assessment</a> }
 									{ !clientData.mindsAssessment && <a href={`/clients/view/${clientData.userID}/onboard`} className="p-2 rounded bg-white border-2 border-solid border-black font-bold text-black">Onboard</a> }
 									<a href={`/clients/view/${clientData.userID}`} className="p-2 rounded bg-black font-bold text-white">Games</a>
