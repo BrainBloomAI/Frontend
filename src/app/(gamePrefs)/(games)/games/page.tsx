@@ -3,7 +3,7 @@
 import { getProfileData, getScenarioList } from "@/app/actions"
 import { redirect } from "next/navigation";
 import { ExtProfileData } from "@/app/lib/definitions";
-import GameSelectionWindow from "@/app/(games)/games/selectionWindow";
+import GameSelectionWindow from "@/app/(gamePrefs)/(games)/games/selectionWindow";
 
 export default async function GameHomePage() {
 	let scenarioList = await getScenarioList()

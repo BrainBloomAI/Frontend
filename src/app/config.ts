@@ -1,11 +1,11 @@
 export default {
-	serverOrigin: "http://localhost:8000",
+	serverOrigin: "https://backend-nyp.apps.hackathon.cnasg.dellcsc.com",
 	authTokenHeaderKeyName: "authtoken",
 
-	speechServiceURL: "localhost:3001",
-	speechServiceRecongitionProtocol: "ws",
+	speechServiceURL: "speechrecog-nyp.apps.hackathon.cnasg.dellcsc.com",
+	speechServiceRecongitionProtocol: "wss",
 	speechServiceRecognitionNamespace: "recognition",
-	speechServiceSynthesisProtocol: "http",
+	speechServiceSynthesisProtocol: "https",
 	speechServiceSynthesisNamespace: "synthesis",
 
 	GameTheme: {

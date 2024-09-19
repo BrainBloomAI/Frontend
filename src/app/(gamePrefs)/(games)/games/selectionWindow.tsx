@@ -1,10 +1,10 @@
 "use client"
 
 import config from "@/app/config"
-import { GamePrefContext } from "@/app/(games)/gamePrefsContext"
-import { useContext } from "react"
-import { ExtProfileData, ScenarioData } from "@/app/lib/definitions"
-import ScenarioSelectionWindow from "@/app/(games)/games/scenarioSelectionBtn"
+import { GamePrefContext } from "@/app/(gamePrefs)/gamePrefsContext"
+import { useEffect, useContext, useState } from "react"
+import { ExtProfileData, GamePreferences, ScenarioData } from "@/app/lib/definitions"
+import ScenarioSelectionWindow from "@/app/(gamePrefs)/(games)/games/scenarioSelectionBtn"
 import Alerts from "@/app/lib/ui/alerts"
 
 export default function GameSelectionWindow({ profileData, scenarioList, errorMessage }: { profileData?: ExtProfileData|null, scenarioList: Array<ScenarioData>, errorMessage?: string }) {

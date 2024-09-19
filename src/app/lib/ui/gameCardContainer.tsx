@@ -6,7 +6,7 @@ const GAME_STATUS_COLOR = {
 	"abandoned": "#ff0000"
 }
 
-export function GameCardContainer({ gameDataArray, isStaff=false }: { gameDataArray: Array<GameData>, isStaff: boolean }) {
+export function GameCardContainer({ gameDataArray, isStaff=false }: { gameDataArray: Array<GameData>, isStaff?: boolean }) {
 	return (
 		<div className="flex flex-col gap-3">
 			{

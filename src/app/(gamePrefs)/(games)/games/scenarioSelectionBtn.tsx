@@ -1,20 +1,19 @@
 "use client"
 
 import { GamePreferences, ScenarioData } from "@/app/lib/definitions";
-import { createNewGame, translateText } from "@/app/actions"
+import { createNewGame, translateText, updateMindsEvaluation } from "@/app/actions"
 import { createContext, Dispatch, SetStateAction, useContext, useEffect, useState } from "react";
+import { GamePrefContext } from "@/app/(gamePrefs)/gamePrefsContext";
 import Alerts from "@/app/lib/ui/alerts";
-import { useRouter, redirect } from "next/navigation";
-import { getSession } from "@/app/lib/sessionManager";
+import { useRouter } from "next/navigation";
 import config from "@/app/config"
-import { GamePrefContext } from "@/app/(games)/gamePrefsContext";
 
 const WindowScenario = createContext<{errorMessageState?: string, setErrorMessageState?: Dispatch<SetStateAction<string|undefined>>}>({})
 const NBSP = " " // non-breaking space for empty lines
 
 const localiseTextDict: { [key: string]: string } = {} // cache of translations
 const localiseText = async (text: string, prefs: GamePreferences) => {
-	console.log(prefs)
+	console.log("minion", prefs)
 	if (prefs.lang === 0) {
 		return text
 	} else {
@@ -26,19 +25,31 @@ const localiseText = async (text: string, prefs: GamePreferences) => {
 	}
 }
 
-function ScenarioSelectionPanel({ scenarioList, prefs }: { scenarioList: Array<ScenarioData>, prefs: GamePreferences }) {
+let updateId = 0
+function ScenarioSelectionPanel({ scenarioList }: { scenarioList: Array<ScenarioData> }) {
+	const { prefs } = useContext(GamePrefContext)
 	let { setErrorMessageState } = useContext(WindowScenario)
 
 	const [localisedNames, setLocalisedNames] = useState(scenarioList.map(s => NBSP)) // empty line
 	const [clickDebounce, setClickDebounce] = useState(true)
 
+	const router = useRouter()
+
+	console.log("SMALL PREFS", prefs)
 	useEffect(() => {
+		console.log("BIG PREFS", prefs)
+		let _id = ++updateId
 		const _inner = async () => {
-			setLocalisedNames(await Promise.all(localisedNames.map(async (_, i) => localiseText(scenarioList[i].name, prefs))))
+			console.log("called again", scenarioList[0].name, prefs)
+			const translateResult = await Promise.all(localisedNames.map(async (_, i) => localiseText(scenarioList[i].name, prefs)))
+			console.log("results!", translateResult[0], _id, updateId)
+			if (_id === updateId) {
+				setLocalisedNames(translateResult)
+			}
 		}
 
 		_inner()
-	}, [])
+	}, [prefs])
 
 	return (
 		scenarioList.map((scenario, i) => {
@@ -65,7 +76,7 @@ function ScenarioSelectionPanel({ scenarioList, prefs }: { scenarioList: Array<S
 									setErrorMessageState(returnPayload.message) // show message
 								}
 							} else {
-								redirect(`/games/${returnPayload.gameID}`) // .success is true, implies .gameID exists
+								router.push(`/games/${returnPayload.gameID}`) // .success is true, implies .gameID exists
 							}
 						}
 					}
@@ -78,7 +89,6 @@ function ScenarioSelectionPanel({ scenarioList, prefs }: { scenarioList: Array<S
 }
 
 export default function ScenarioSelectionWindow({ scenarioList, errorMessage }: { scenarioList: Array<ScenarioData>, errorMessage?: string }) {
-	const { prefs } = useContext(GamePrefContext)
 	const [errorMessageState, setErrorMessageState] = useState(errorMessage)
 
 	return (
@@ -86,7 +96,7 @@ export default function ScenarioSelectionWindow({ scenarioList, errorMessage }: 
 			<WindowScenario.Provider value={{errorMessageState, setErrorMessageState}}>
 				<div className="grow min-h-0 overflow-y-auto grid grid-cols-2 auto-rows-min gap-4">
 					{
-						<ScenarioSelectionPanel scenarioList={scenarioList} prefs={prefs} />
+						<ScenarioSelectionPanel scenarioList={scenarioList} />
 					}
 				</div>
 				<Alerts message={errorMessageState} />

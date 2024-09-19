@@ -1,31 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useContext, useState } from "react"
+import { GamePrefContext } from "@/app/(gamePrefs)/gamePrefsContext"
 
 
 export default function Prefs() {
 	// change prefs
-	const [prefs, setPrefs] = useState({lang: 1 as 0|1|2|3})
-
-	useEffect(() => {
-		const getPrefs = () => {
-			let rawPrefs = window.localStorage.getItem("prefs")
-			if (rawPrefs) {
-				return JSON.parse(rawPrefs)
-			} else {
-				return {
-					lang: 1 as 0|1|2|3
-				}
-			}
-		}
-
-		setPrefs(getPrefs())
-	}, [])
-
-	useEffect(() => {
-		localStorage.setItem("prefs", JSON.stringify(prefs))
-		console.log("FIRED")
-	}, [prefs])
+	const { prefs, setPrefs } = useContext(GamePrefContext)
 
 	return (
 		<div className="grow flex flex-col gap-2 p-8">
@@ -33,7 +14,10 @@ export default function Prefs() {
 				<label className="font-bold">Language</label>
 				<select className="p-2" value={prefs.lang} onChange={e => {
 					prefs.lang = parseInt(e.target.value) as 0|1|2|3
-					setPrefs(Object.assign({}, prefs))
+					console.log("setPrefs", setPrefs)
+					if (setPrefs) {
+						setPrefs(Object.assign({}, prefs))
+					}
 				}}>
 					<option value="0">English</option>
 					<option value="1">Mandarin</option>
