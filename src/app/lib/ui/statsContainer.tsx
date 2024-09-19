@@ -13,8 +13,8 @@ export function StatsContainer({ clientData, showOnboardBtn=false }: { clientDat
 								<td className="pb-2 w-full">
 									<div className="flex flex-col gap-2">
 										<p className="self-end">{clientData[`minds${metricKey}`]}</p>
-										<div className="relative w-full h-4 rounded bg-slate-500 border border-slate-300 border-solid">
-											<div className="absolute top-0 left-0 h-full scale-x-0 origin-left"
+										<div className="relative w-full h-2 rounded-full bg-slate-500">
+											<div className="absolute top-0 left-0 h-full rounded-full scale-x-0 origin-left"
 												style={{
 													backgroundColor: "rgb(0 255 0)",
 													width: `${clientData[`minds${metricKey}`]}%`,
