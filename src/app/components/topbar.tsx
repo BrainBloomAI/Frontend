@@ -1,4 +1,4 @@
-import logo from "@/public/branding/logo.svg"
+import logo from "@/public/branding/logo.png"
 import { ProfileDataContext } from "@/app/lib/ui/contextWrapper"
 import { useContext } from "react"
 

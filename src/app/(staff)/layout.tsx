@@ -2,7 +2,7 @@
 
 import TopbarComponent from "@/app/components/topbar";
 
-import logo from "@/public/branding/logo.svg"
+import logo from "@/public/branding/logo.png"
 import { GameData, ProfileData } from "@/app/lib/definitions"
 import { getProfileData, isStaff } from "@/app/actions";
 import Alerts from "@/app/lib/ui/alerts"

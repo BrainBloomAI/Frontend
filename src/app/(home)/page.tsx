@@ -1,7 +1,7 @@
 "use server"
 
 import { isAuthenticated, isStaff } from "@/app/actions"
-import logo from "@/public/branding/logo.svg"
+import logo from "@/public/branding/logo.png"
 
 function StaffActionPanel() {
 	return (

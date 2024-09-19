@@ -1,4 +1,4 @@
-import logo from "@/public/branding/logo.svg"
+import logo from "@/public/branding/logo.png"
 
 export default function ScrapePage() {
 	return (

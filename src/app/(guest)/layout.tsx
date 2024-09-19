@@ -1,6 +1,6 @@
 "use server"
 
-import logo from "@/public/branding/logo.svg"
+import logo from "@/public/branding/logo.png"
 import { isAuthenticated } from "../actions";
 import { redirect } from "next/navigation";
 
