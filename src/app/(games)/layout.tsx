@@ -2,6 +2,7 @@
 
 import { isAuthenticated } from "../actions";
 import { redirect } from "next/navigation";
+import GamePrefContextProvider, { GamePrefContext } from "./gamePrefsContext";
 
 export default async function GameLayout({
   children,
@@ -14,8 +15,6 @@ export default async function GameLayout({
   }
 
   return (
-    <>
-      {children}
-    </>
+    <GamePrefContextProvider children={children} />
   );
 }

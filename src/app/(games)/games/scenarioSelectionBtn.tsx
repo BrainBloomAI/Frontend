@@ -1,20 +1,44 @@
 "use client"
 
-import { ScenarioData } from "@/app/lib/definitions";
-import { createNewGame } from "@/app/actions"
-import { createContext, Dispatch, SetStateAction, useContext, useState } from "react";
+import { GamePreferences, ScenarioData } from "@/app/lib/definitions";
+import { createNewGame, translateText } from "@/app/actions"
+import { createContext, Dispatch, SetStateAction, useContext, useEffect, useState } from "react";
 import Alerts from "@/app/lib/ui/alerts";
-import { useRouter } from "next/navigation";
+import { useRouter, redirect } from "next/navigation";
 import { getSession } from "@/app/lib/sessionManager";
 import config from "@/app/config"
+import { GamePrefContext } from "@/app/(games)/gamePrefsContext";
 
 const WindowScenario = createContext<{errorMessageState?: string, setErrorMessageState?: Dispatch<SetStateAction<string|undefined>>}>({})
+const NBSP = " " // non-breaking space for empty lines
 
-function ScenarioSelectionPanel({ scenarioList }: { scenarioList: Array<ScenarioData> }) {
+const localiseTextDict: { [key: string]: string } = {} // cache of translations
+const localiseText = async (text: string, prefs: GamePreferences) => {
+	console.log(prefs)
+	if (prefs.lang === 0) {
+		return text
+	} else {
+		if (localiseTextDict[text]) {
+			return localiseTextDict[text]
+		}
+
+		return translateText(text, prefs.lang)
+	}
+}
+
+function ScenarioSelectionPanel({ scenarioList, prefs }: { scenarioList: Array<ScenarioData>, prefs: GamePreferences }) {
 	let { setErrorMessageState } = useContext(WindowScenario)
-	let [clickDebounce, setClickDebounce] = useState(true)
 
-	const router = useRouter()
+	const [localisedNames, setLocalisedNames] = useState(scenarioList.map(s => NBSP)) // empty line
+	const [clickDebounce, setClickDebounce] = useState(true)
+
+	useEffect(() => {
+		const _inner = async () => {
+			setLocalisedNames(await Promise.all(localisedNames.map(async (_, i) => localiseText(scenarioList[i].name, prefs))))
+		}
+
+		_inner()
+	}, [])
 
 	return (
 		scenarioList.map((scenario, i) => {
@@ -41,12 +65,12 @@ function ScenarioSelectionPanel({ scenarioList }: { scenarioList: Array<Scenario
 									setErrorMessageState(returnPayload.message) // show message
 								}
 							} else {
-								router.push(`/games/${returnPayload.gameID}`) // .success is true, implies .gameID exists
+								redirect(`/games/${returnPayload.gameID}`) // .success is true, implies .gameID exists
 							}
 						}
 					}
 				>
-					<p className="w-full p-2 text-white font-xl font-bold text-center bg-black rounded">{scenario.name}</p>
+					<p className="w-full p-2 text-white font-xl font-bold text-center bg-black rounded">{localisedNames[i]}</p>
 				</button>
 			)
 		})
@@ -54,6 +78,7 @@ function ScenarioSelectionPanel({ scenarioList }: { scenarioList: Array<Scenario
 }
 
 export default function ScenarioSelectionWindow({ scenarioList, errorMessage }: { scenarioList: Array<ScenarioData>, errorMessage?: string }) {
+	const { prefs } = useContext(GamePrefContext)
 	const [errorMessageState, setErrorMessageState] = useState(errorMessage)
 
 	return (
@@ -61,7 +86,7 @@ export default function ScenarioSelectionWindow({ scenarioList, errorMessage }: 
 			<WindowScenario.Provider value={{errorMessageState, setErrorMessageState}}>
 				<div className="grow min-h-0 overflow-y-auto grid grid-cols-2 auto-rows-min gap-4">
 					{
-						<ScenarioSelectionPanel scenarioList={scenarioList} />
+						<ScenarioSelectionPanel scenarioList={scenarioList} prefs={prefs} />
 					}
 				</div>
 				<Alerts message={errorMessageState} />
