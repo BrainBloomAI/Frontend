@@ -334,7 +334,7 @@ export default function GameInterface({ gamesId, prefs }: { gamesId: string, pre
 			prefs
 		})
 		setRecorderObj(SR) // store in state for reference by DOM
-	}, [])
+	}, [prefs])
 
 	useEffect(() => {
 		if (!recorderObj) {
