@@ -910,12 +910,11 @@ export async function exportClientData(clientUsername: string) {
 
 	// params
 	const queryParams = new URLSearchParams()
-	console.log("auth token", authToken)
 	queryParams.append("authToken", authToken)
 	queryParams.append("exportFormat", "csv")
-	queryParams.append("includeScenario", "true")
+	queryParams.append("includeScenarios", "true")
 	queryParams.append("includeGames", "true")
-	queryParams.append("includeEvaluation", "true")
+	queryParams.append("includeEvaluations", "true")
 	queryParams.append("includeDialogues", "true")
 	queryParams.append("computePerformance", "true")
 	queryParams.append("targetUsername", clientUsername)
