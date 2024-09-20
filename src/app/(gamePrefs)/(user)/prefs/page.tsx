@@ -2,6 +2,7 @@
 
 import { useEffect, useContext, useState } from "react"
 import { GamePrefContext } from "@/app/(gamePrefs)/gamePrefsContext"
+import { langList, langDict } from "@/app/lib/languages"
 
 
 export default function Prefs() {
@@ -21,10 +22,11 @@ export default function Prefs() {
 							setPrefs(Object.assign({}, prefs))
 						}
 					}}>
-						<option value="0">English</option>
-						<option value="1">Mandarin</option>
-						<option value="2">Bahasa Malaysia</option>
-						<option value="3">Tamil</option>
+						{
+							langList.map((lang, i) => 
+								<option key={i} value={i}>{langDict[lang].name}</option>
+							)
+						}
 					</select>
 				</section>
 				<section className="flex flex-col gap-2">

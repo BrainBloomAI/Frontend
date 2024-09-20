@@ -2,6 +2,7 @@
 
 import { OnboardFormSchema, LoginFormSchema, SignupFormSchema, LoginFormState, SignupFormState, MindsEvalFormState, ScenarioFormState, ProfileData, ExtProfileData, ScenarioFormSchema, ScenarioData } from "@/app/lib/definitions"
 import { createSession, getSession } from "@/app/lib/sessionManager"
+import { langList, languageCodes, voiceNames } from "@/app/lib/languages"
 import { downgradeSession, upgradeSession } from "@/app/lib/dataAccessLayer"
 import { redirect, RedirectType } from "next/navigation"
 
@@ -15,9 +16,6 @@ import config from "@/app/config"
 const googleTranslateClient = new v2.Translate();
 const googleSynthesisClient = new textToSpeech.TextToSpeechClient();
 
-const langList = ["en", "zh-CN", "ms", "hi"]
-const languageCodes = ["en-GB", "cmn-CN", "ms-MY", "hi-IN"]
-const voiceNames = ["en-GB-Neural2-B", "cmn-CN-Wavenet-C", "ms-MY-Wavenet-A", "hi-IN-Neural2-B"]
 
 export async function updateMindsEvaluation(state: MindsEvalFormState, formData: FormData) {
 	const validatedFields = OnboardFormSchema.safeParse({
