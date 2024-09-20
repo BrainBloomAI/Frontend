@@ -130,7 +130,7 @@ export async function login(state: LoginFormState, formData: FormData) {
 		console.log("UPGRADED SESSION", session, await getSession())
 
 		// redirect user
-		return redirect("/")
+		return redirect("/games")
 	} else {
 		return {
 			message: errorMessage ?? "Failed to communicate with server (1)"
@@ -233,8 +233,8 @@ export async function staffSignup(state: SignupFormState, formData: FormData) {
 		// managed to obtain authToken
 		await upgradeSession(authToken) // wait for session to upgrade before redirecting user to a privilege-required page
 
-		// redirect user
-		return redirect("/games")
+		// redirect staff to home page
+		return redirect("/")
 	} else {
 		return {
 			message: errorMessage ?? "Failed to communicate with server (2)"
