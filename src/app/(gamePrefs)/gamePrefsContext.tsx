@@ -10,7 +10,7 @@ export const GamePrefContext = createContext<{prefs: GamePreferences, setPrefs?:
 })
 
 export default function GamePrefContextProvider({ children }: { children: React.ReactNode }) {
-	const [prefs, setPrefs] = useState({lang: 0 as 0|1|2|3})
+	const [prefs, setPrefs] = useState({lang: 0 as 0|1|2|3|4})
 	useEffect(() => {
 		const getPrefs = () => {
 			let rawPrefs = window.localStorage.getItem("prefs")
@@ -18,7 +18,7 @@ export default function GamePrefContextProvider({ children }: { children: React.
 				return JSON.parse(rawPrefs)
 			} else {
 				return {
-					lang: 1 as 0|1|2|3
+					lang: 1 as 0|1|2|3|4
 				}
 			}
 		}
