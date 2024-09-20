@@ -883,7 +883,7 @@ export async function synthesis(text: string, lang: number) {
 	}
 	const request = {
 		input: { text },
-		voice: { languageCode: languageCodes[lang], name: voiceNames[lang], ssmlGender: "NEUTRAL" as "NEUTRAL" },
+		voice: { languageCode: languageCodes[lang], name: voiceNames[lang], ssmlGender: "MALE" as const },
 		audioConfig: { audioEncoding: "MP3" as "MP3", speakingRate: 0.8 },
 	};
 
