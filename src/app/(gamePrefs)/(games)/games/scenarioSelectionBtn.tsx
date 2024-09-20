@@ -21,7 +21,11 @@ const localiseText = async (text: string, prefs: GamePreferences) => {
 			return localiseTextDict[text]
 		}
 
-		return translateText(text, prefs.lang)
+		let translateResult = await translateText(text, prefs.lang)
+		if (translateResult == null) {
+			console.warn("localiseText failed internally")
+		}
+		return translateResult ?? text // fallback to pre-translated text
 	}
 }
 

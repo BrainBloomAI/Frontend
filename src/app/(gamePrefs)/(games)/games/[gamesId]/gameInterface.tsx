@@ -25,6 +25,12 @@ const speakText = (text: string, speaker: 0|1) => {
 	/**
 	 * text to speech streamed with mediasource and played via audio object
 	 */
+	// safety guard
+	if (text.length >= 1000) {
+		// limit number of characters
+		return new Promise((res: (value?: unknown) => void) => res())
+	}
+
 	// return promise chain
 	let resolverFn: (value?: unknown) => void
 	let p = new Promise(res => {
@@ -62,6 +68,9 @@ const speakText = (text: string, speaker: 0|1) => {
 				}).then(r => {
 					console.log("STREAM RETURNED", r.body)
 					return r.body
+				}).catch(err => {
+					console.warn("fetching readablestream", err)
+					return
 				})
 				if (readableStream == null) {
 					return resolverFn()
@@ -117,6 +126,9 @@ const speakText = (text: string, speaker: 0|1) => {
 				}).then(r => {
 					console.log("STREAM RETURNED", r.body)
 					return r.body
+				}).catch(err => {
+					console.warn("fetching readablestream", err)
+					return
 				})
 				if (readableStream == null) {
 					return resolverFn()

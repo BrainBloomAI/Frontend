@@ -866,6 +866,10 @@ export async function deleteScenario(scenarioID: string) {
 }
 
 export async function translateText(text: string, to: number) {
+	if (text.length >= 1000) {
+		// safety guard to prevent API abuse
+		return
+	}
 	let [ translations ] = await googleTranslateClient.translate(text, langList[to]);
 	let translationsList = Array.isArray(translations) ? translations : [translations];
 
@@ -873,6 +877,10 @@ export async function translateText(text: string, to: number) {
 }
 
 export async function synthesis(text: string, lang: number) {
+	if (text.length >= 1000) {
+		// safety guard to prevent API abuse
+		return
+	}
 	const request = {
 		input: { text },
 		voice: { languageCode: languageCodes[lang], name: voiceNames[lang], ssmlGender: "NEUTRAL" as "NEUTRAL" },
