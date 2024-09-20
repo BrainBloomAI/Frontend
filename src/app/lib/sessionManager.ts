@@ -104,8 +104,8 @@ export async function decrypt(session: string|undefined = ""): Promise<(SessionP
 		const payload = verified.payload as SessionPayload
 
 		return payload
-	} catch (error) {
-		console.log("Failed to verify session")
+	} catch (err) {
+		console.log("Failed to verify session", err)
 		return null
 	}
 }
