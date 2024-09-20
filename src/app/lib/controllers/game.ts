@@ -322,7 +322,7 @@ export class Game {
 
 			// fire event
 			this._loadNext()
-		} else if ("suggestedAIResponse" in responseData) {
+		} else if ("guidingAIResponse" in responseData) {
 			// user response can be better
 			this._currDialogueAttempts++
 
