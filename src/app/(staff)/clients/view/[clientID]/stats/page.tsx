@@ -25,7 +25,7 @@ export default async function AccountPage({ params }: { params: { clientID: stri
 			<div className="flex flex-row gap-2">
 				<a href="/clients/view" className="text-2xl font-bold">&lt;</a>
 				<h1 className="text-2xl pb-4 font-bold text-black">{`${clientData.username}'s statistics`}</h1>
-			</div>				
+			</div>
 			<StatsContainer clientData={clientData} showOnboardBtn={true} />
 		</div>
 	)

@@ -1,8 +1,9 @@
 "use client";
 import { useFormState } from "react-dom"
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { updateMindsEvaluation } from "@/app/actions";
 import Alerts from "@/app/lib/ui/alerts";
+import { ClientDataContext } from "../clientDataProvider";
 
 export default function OnboardPage({ params }: { params: { clientID: string }}) {
   const [state, action] = useFormState(updateMindsEvaluation, undefined)
@@ -21,8 +22,14 @@ export default function OnboardPage({ params }: { params: { clientID: string }})
     return `linear-gradient(to right, #3b82f6 ${value}%, #e5e7eb ${value}%)`;
   };
 
+  const { clientData } = useContext(ClientDataContext)
+
   return (
     <div className="p-8">
+      <div className="flex flex-row gap-2">
+        <a href="/clients/view" className="text-2xl font-bold">&lt;</a>
+        <h1 className="text-2xl pb-4 font-bold text-black">{`${clientData.username}'s statistics`}</h1>
+      </div>
       <form action={action}>
         <input name="clientIDLookup" type="text" value={params.clientID} className="hidden" />
 
