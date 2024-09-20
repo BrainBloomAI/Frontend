@@ -7,6 +7,7 @@ function StaffActionPanel() {
 	return (
 		<div className="flex flex-col gap-4">
 			<a href="/scenarios/create" className="p-2 rounded border border-black border-solid text-black">Create scenarios</a>
+			<a href="/profile" className="p-2 rounded border border-black border-solid text-black">Profile</a>
 			<a href="/clients/view" className="p-2 bg-black rounded text-white font-bold">View clients</a>
 		</div>
 	)
