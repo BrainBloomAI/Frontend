@@ -86,7 +86,7 @@ export class Recorder {
 			}
 		}).catch(err => {
 			// mic failed
-			console.log("MIC RETRIEVAL FAILED")
+			console.log("MIC RETRIEVAL FAILED", err)
 		});
 
 		// initialise socket
