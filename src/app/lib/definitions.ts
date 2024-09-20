@@ -20,7 +20,8 @@ export const LoginFormSchema = z.object({
 	name: z
 		.string()
 		.min(2, { message: "Name must be at least 2 characters long." })
-		.trim(),
+		.trim()
+		.toLowerCase(),
 	password: z
 		.string()
 		.min(8, { message: "Be at least 8 characters long." })
@@ -36,8 +37,9 @@ export const SignupFormSchema = z.object({
 	name: z
 		.string()
 		.min(2, { message: "Name must be at least 2 characters long." })
-		.trim(),
-	email: z.string().email({ message: "Please enter a valid email." }).trim(),
+		.trim()
+		.toLowerCase(),
+	email: z.string().email({ message: "Please enter a valid email." }).trim().toLowerCase(),
 	password: z
 		.string()
 		.min(8, { message: "Be at least 8 characters long." })
