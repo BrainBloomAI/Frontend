@@ -23,8 +23,8 @@ export default function Prefs() {
 					}}>
 						<option value="0">English</option>
 						<option value="1">Mandarin</option>
-						<option value="2">Behasa Melayu</option>
-						<option value="3">Hindu</option>
+						<option value="2">Bahasa Malaysia</option>
+						<option value="3">Tamil</option>
 					</select>
 				</section>
 				<section className="flex flex-col gap-2">
