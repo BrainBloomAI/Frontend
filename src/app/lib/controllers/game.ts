@@ -322,7 +322,7 @@ export class Game {
 
 			// fire event
 			this._loadNext()
-		} else if ("guidingAIResponse" in responseData) {
+		} else if ("guidingAIQuestion" in responseData) {
 			// user response can be better
 			this._currDialogueAttempts++
 
@@ -352,7 +352,7 @@ export class Game {
 					gameID: this.gameID!,
 
 					attempts: [attemptData]
-				}, attemptData, responseData.suggestedAIResponse, this._currDialogueAttempts >= 2, false)
+				}, attemptData, responseData.guidingAIQuestion, this._currDialogueAttempts >= 2, false)
 			}
 		} else {
 			if ("pointsEarned" in responseData) {

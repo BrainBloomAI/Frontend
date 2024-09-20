@@ -548,7 +548,7 @@ export async function getAllGameData() {
 
 type NewDialogueBackendResponse = {
 	message: string,
-	suggestedAIResponse: string
+	guidingAIQuestion: string
 } | {
 	message: string,
 	aiResponse: {
