@@ -84,6 +84,9 @@ export class Recorder {
 					this.socket.emit("audio", await event.data.arrayBuffer()) // send binary data as array buffer
 				}
 			}
+		}).catch(err => {
+			// mic failed
+			console.log("MIC RETRIEVAL FAILED")
 		});
 
 		// initialise socket

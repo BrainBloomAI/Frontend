@@ -25,84 +25,151 @@ const speakText = (text: string, speaker: 0|1) => {
 	/**
 	 * text to speech streamed with mediasource and played via audio object
 	 */
-	const audio = new Audio()
-	const mediaSource = new MediaSource()
-
 	// return promise chain
 	let resolverFn: (value?: unknown) => void
 	let p = new Promise(res => {
 		resolverFn = res
 	})
 
+	// create playback object
+	const audio = new Audio()
 	audio.addEventListener("ended", () => {
 		resolverFn()
 	})
 
-	audio.src = URL.createObjectURL(mediaSource)
-	audio.play().catch(err => {
-		resolverFn() // no audio -> resolve promise to continue game
-	})
+	if (window.MediaSource) {
+		// stream via media source
+		const mediaSource = new MediaSource()
 
-	console.log("INVOKED SO FAST", globalPrefs)
-	mediaSource.addEventListener("sourceopen", async () => {
-		console.log("SOURCE OPENED")
+		audio.src = URL.createObjectURL(mediaSource)
+		audio.play().catch(err => {
+			resolverFn() // no audio -> resolve promise to continue game
+		})
 
+		console.log("INVOKED SO FAST", globalPrefs)
+		mediaSource.addEventListener("sourceopen", async () => {
+			console.log("SOURCE OPENED")
+
+			if (globalPrefs.lang === 0) {
+				const sourceBuffer = mediaSource.addSourceBuffer("audio/aac")
+
+				const readableStream = await fetch(`${config.speechServiceSynthesisProtocol}://${config.speechServiceURL}/${config.speechServiceSynthesisNamespace}`, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json"
+					},
+					body: JSON.stringify({ text, speaker })
+				}).then(r => {
+					console.log("STREAM RETURNED", r.body)
+					return r.body
+				})
+				if (readableStream == null) {
+					return resolverFn()
+				}
+
+				const reader = readableStream.getReader()
+				const pushToBuffer = async () => {
+					console.log("Pushing")
+					const { done, value } = await reader.read()
+					console.log("reading", value)
+					if (done) {
+						mediaSource.endOfStream()
+						return
+					}
+
+					if (!sourceBuffer.updating) {
+						sourceBuffer.appendBuffer(value)
+					}
+				}
+
+				sourceBuffer.addEventListener("updateend", pushToBuffer)
+				pushToBuffer() // initial update
+			} else {
+				// utilise google synthesiser for other languages
+				const sourceBuffer = mediaSource.addSourceBuffer("audio/mpeg")
+				let synthResult = await synthesis(text, globalPrefs.lang)
+				if (!synthResult) {
+					// failed
+					return resolverFn() // resolve returned promise as no sound will play
+				}
+
+				synthResult = new Uint8Array(synthResult)
+				sourceBuffer.addEventListener("updateend", () => mediaSource.endOfStream())
+				sourceBuffer.appendBuffer(synthResult.buffer)
+			}
+		})
+
+		mediaSource.addEventListener("error", e => {
+			console.log("Mediasource error")
+			resolverFn() // immediately resolve promise
+		})
+	} else {
+		// preload audio then play it with an audio object
 		if (globalPrefs.lang === 0) {
-			const sourceBuffer = mediaSource.addSourceBuffer("audio/aac")
-			const readableStream = await fetch(`${config.speechServiceSynthesisProtocol}://${config.speechServiceURL}/${config.speechServiceSynthesisNamespace}`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json"
-				},
-				body: JSON.stringify({ text, speaker })
-			}).then(r => {
-				console.log("STREAM RETURNED", r.body)
-				return r.body
-			})
-			if (!readableStream) {
-				// invalid response supplied
-				return
-			}
-
-			const reader = readableStream.getReader()
-			console.log("reader", reader)
-			const pushToBuffer = async () => {
-				console.log("Pushing")
-				const { done, value } = await reader.read()
-				console.log("reading", value)
-				if (done) {
-					mediaSource.endOfStream()
-					return
+			// english
+			const accumulateChunks = async () => {
+				const readableStream = await fetch(`${config.speechServiceSynthesisProtocol}://${config.speechServiceURL}/${config.speechServiceSynthesisNamespace}`, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json"
+					},
+					body: JSON.stringify({ text, speaker })
+				}).then(r => {
+					console.log("STREAM RETURNED", r.body)
+					return r.body
+				})
+				if (readableStream == null) {
+					return resolverFn()
 				}
 
-				if (!sourceBuffer.updating) {
-					sourceBuffer.appendBuffer(value)
+				// obtain readablestream's reader
+				const reader = readableStream.getReader()
+
+				let chunks = [] // stream and accumulate audio data here
+				let finishedStreaming = false;
+				while (!finishedStreaming) {
+					const { value, done } = await reader.read();
+					if (value) {
+						chunks.push(value);
+					}
+
+					finishedStreaming = done;
 				}
+
+				// create blob from array of chunks
+				const blob = new Blob(chunks, { type: "audio/aac" });
+
+				audio.src = URL.createObjectURL(blob)
+				audio.play().catch(err => {
+					resolverFn() // no audio -> resolve promise to continue game
+				})
 			}
 
-			sourceBuffer.addEventListener("updateend", pushToBuffer)
-			pushToBuffer() // initial update
+			accumulateChunks()
 		} else {
 			// utilise google synthesiser for other languages
-			const sourceBuffer = mediaSource.addSourceBuffer("audio/mpeg")
-			let synthResult = await synthesis(text, globalPrefs.lang)
-			if (!synthResult) {
-				// failed
-				return resolverFn() // resolve returned promise as no sound will play
+			const fetchTextSynth = async () => {
+				let synthResult = await synthesis(text, globalPrefs.lang)
+				if (!synthResult) {
+					// failed
+					return resolverFn() // resolve returned promise as no sound will play
+				}
+
+				if (synthResult) {
+					synthResult = new Uint8Array(synthResult) // convert it to an explicit uint8array object
+
+					audio.src = URL.createObjectURL(new Blob([synthResult]))
+					audio.play().catch(err => {
+						resolverFn() // no audio -> resolve promise to continue game
+					})
+				}
 			}
 
-			synthResult = new Uint8Array(synthResult)
-			sourceBuffer.addEventListener("updateend", () => mediaSource.endOfStream())
-			sourceBuffer.appendBuffer(synthResult.buffer)
+			fetchTextSynth()
 		}
-	})
+	}
 
-	mediaSource.addEventListener("error", e => {
-		console.log("Mediasource error")
-		resolverFn() // immediately resolve promise
-	})
-
-	return p
+	return p // will resolve when speaking function is no longer relevant (e.g. done or failed to start)
 }
 
 const typeText = async (text: string, containerRef: RefObject<HTMLDivElement>, typingContentState: Dispatch<SetStateAction<string>>, emitSound: boolean = true, speaker: 0|1 = 0) => {
