@@ -18,7 +18,7 @@ export default function Prefs() {
 					<h2 className="mb-1 font-bold text-xl">Game preferences</h2>
 					<label className="font-bold">Language</label>
 					<select className="p-2 rounded bg-white" value={prefs.lang} onChange={e => {
-						prefs.lang = parseInt(e.target.value) as 0|1|2|3
+						prefs.lang = parseInt(e.target.value) as 0|1|2|3|4
 						console.log("setPrefs", setPrefs)
 						if (setPrefs) {
 							setPrefs(Object.assign({}, prefs))
@@ -36,10 +36,10 @@ export default function Prefs() {
 					<label className="font-bold">Email</label>
 					<input className="p-2 rounded bg-white" type="text" value={profileData?.email} disabled />
 					<p className="text-sm mb-4">Please reach out to support@brainbloom.ai to change email address.</p>
-					<a href="/logout" className="p-2 rounded bg-black text-white font-bold">Logout</a>
+					<a href="/logout" className="p-2 rounded border-[rgb(255_45_45)] border-solid border text-[rgb(255_45_45)] font-bold">Logout</a>
 				</section>
+				<a href="/profile" className="p-2 rounded bg-black text-white font-bold mt-auto">Save</a>
 			</div>
-			<a href="/profile" className="font-bold underline">Go back</a>
 		</div>
 	)
 }

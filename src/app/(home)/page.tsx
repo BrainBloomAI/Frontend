@@ -37,7 +37,7 @@ export default async function LandingPage() {
 
 	return (
 		<main id="guest-bg" className="p-8">
-			<img className="w-full p-4 max-h-[250px] object-fit mb-24" src={logo.src} />
+			<img className="w-full p-4 max-h-[250px] object-contain mb-24" src={logo.src} />
 			{
 				isLoggedIn ? (isLoggedInAsStaff ? <StaffActionPanel /> : <UserActionPanel />) : <GuestActionPanel />
 			}
