@@ -64,7 +64,7 @@ export class Recorder {
 		// initialise microphone
 		this.recorder;
 		navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-			const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+			const recorder = new MediaRecorder(stream);
 			this.recorder = recorder;
 
 			this.recorder.ondataavailable = async (event) => {
@@ -138,6 +138,20 @@ export class Recorder {
 			}
 		}
 
+		const onTranscriptionFailure = async () => {
+			this.stopRecording()
+			// let { onResult, onEnd } = this.session
+
+			// this.clearSession()
+			// this.createSession()
+
+			// // attach back event handlers
+			// this.session.onResult = onResult
+			// this.session.onEnd = onEnd
+
+			// console.log("reattached")
+		}
+
 		// establish socket connection
 		if (this.socket.connected) {
 			onConnect()
@@ -148,6 +162,7 @@ export class Recorder {
 		this.socket.on("disconnect", onDisconnect)
 		this.socket.on("transcription", onTranscription)
 		this.socket.on("preload-ready", onPreloadReady)
+		this.socket.on("transcription-failure", onTranscriptionFailure)
 	}
 
 	createSession() {
