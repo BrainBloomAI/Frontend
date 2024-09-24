@@ -23,7 +23,13 @@ export default function GamePrefContextProvider({ children }: { children: React.
 			}
 		}
 
-		setPrefs(getPrefs())
+		let currentPrefs = getPrefs()
+		if (currentPrefs.lang === prefs.lang) {
+			// same
+			return
+		} else {
+			setPrefs(currentPrefs)
+		}
 	}, [])
 
 	useEffect(() => {
