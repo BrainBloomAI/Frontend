@@ -27,6 +27,7 @@ export class Recorder {
 	setIsConnected: Dispatch<SetStateAction<boolean>>
 
 	recorder?: MediaRecorder
+	audioCtx?: AudioContext
 
 	socket: Socket
 	session: RecordingSession
@@ -63,9 +64,30 @@ export class Recorder {
 
 		// initialise microphone
 		this.recorder;
+		this.audioCtx;
 		navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
 			const recorder = new MediaRecorder(stream);
 			this.recorder = recorder;
+			this.audioCtx = new AudioContext()
+
+			const source = this.audioCtx.createMediaStreamSource(stream)
+			const analyser = this.audioCtx.createAnalyser()
+			analyser.fftSize = 2048
+
+			const highpassFilter = this.audioCtx.createBiquadFilter()
+			highpassFilter.type = "highpass"
+			highpassFilter.frequency.value = 300 // set to 300hz for speech
+
+			const lowpassFilter = this.audioCtx.createBiquadFilter()
+			lowpassFilter.type = "lowpass"
+			lowpassFilter.frequency.value = 3000 // set to 3kHz for speech
+
+			const bufferLength = analyser.frequencyBinCount
+			const dataArray = new Uint8Array(bufferLength)
+
+			source.connect(analyser)
+			source.connect(highpassFilter)
+			source.connect(lowpassFilter)
 
 			this.recorder.ondataavailable = async (event) => {
 				if (!this.isRecording) {
@@ -80,8 +102,18 @@ export class Recorder {
 						return this.stopRecording()
 					}
 
-					// socket is connected
-					this.socket.emit("audio", await event.data.arrayBuffer()) // send binary data as array buffer
+					// determine frequency analysis
+					analyser.getByteFrequencyData(dataArray)
+					let sum = 0;
+					for (let i = 0; i < bufferLength; i++) {
+						sum += dataArray[i]
+					}
+
+					const average = sum /bufferLength
+					if (average > 10) {
+						// speech detected and socket is connected -> send data to speech service
+					}
+					this.socket.emit("audio", event.data) // send binary data as array buffer
 				}
 			}
 		}).catch(err => {
