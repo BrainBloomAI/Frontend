@@ -45,3 +45,5 @@ Contains the Google Cloud's service account key
 # Resources
 - Icons sourced from [Phosphor Icons](https://phosphoricons.com/)
 - Bing sound effect from [orangefreesounds](https://orangefreesounds.com/mario-coin-sound/)
+
+©️ 2024 BrainBloomAI Team. All rights reserved.
